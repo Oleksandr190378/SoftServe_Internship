@@ -353,7 +353,6 @@ Each chunk includes:
 - Implement query expansion
 - Support PDF uploads (custom documents)
 - Add caching for common queries
-- Fine-tune re-ranking model
 
 ---
 
@@ -391,7 +390,7 @@ Each chunk includes:
   - [x] Verified with test queries
 
 ### Phase 3: RAG Pipeline 🔄 IN PROGRESS 
-- [x] **Retriever (100% Complete):**
+- [x] **Retriever :**
   - [x] Created retriever.py with MultimodalRetriever class
   - [x] Implemented retrieve_text_chunks() - semantic search
   - [x] Implemented retrieve_with_strict_images() - metadata-driven
@@ -410,7 +409,7 @@ Each chunk includes:
   - [x] Tested: "show encoder decoder" → 3 unique images, all MEDIUM confidence
   - [x] Validation: Enriched captions (768 chars) used for semantic matching
 
-- [ ] **Generator (0% Complete):**
+- [ ] **Generator :**
   - [ ] Create generator.py with Groq LLM integration
   - [ ] Design prompt with metadata awareness (confidence levels, similarity scores)
   - [ ] Implement citation logic (chunk_id, image_id references)
@@ -422,78 +421,3 @@ Each chunk includes:
 - [ ] Run retrieval metrics
 - [ ] Iterate on failures
 
----
-
-## 10. Architecture Overview
-
-```
-Query: "show encoder decoder"
-    ↓
-[Retriever] retrieve_with_verification(query, k_text=3)
-    ↓
-1. Semantic search text_chunks → Top-3 chunks (~1400 tokens)
-2. Batch embed all chunks (1 API call, cache results)
-3. Extract metadata candidate images:
-   - related_image_ids (same page)
-   - nearby_image_ids (±1 page, if has_figure_references)
-4. Semantic verification (with cached embeddings):
-   - Explicit figure ref → HIGH confidence (skip verification)
-   - Cosine similarity > 0.6 (same-page) → MEDIUM confidence
-   - Cosine similarity > 0.7 (nearby) → MEDIUM confidence
-   - Else → Rejected
-5. Visual query fallback (if no verified images):
-   - Semantic caption search (k=2)
-   - Verify with threshold 0.5 → LOW confidence
-6. Deduplicate by image_id
-    ↓
-[Formatter] prepare_for_llm(query, text_chunks, verified_images)
-    ↓
-Structured output:
-{
-  "query": "...",
-  "text_chunks": [{chunk_id, text, page, has_figure_refs, related_image_ids}],
-  "images": [{image_id, caption, confidence, similarity, reason}],
-  "metadata": {counts...}
-}
-    ↓
-[Generator] generate_answer(llm_input) - PENDING
-    ↓
-1. Build prompt with enriched captions (avg 3,262 chars)
-2. LLM weighs confidence levels (HIGH > MEDIUM > LOW)
-3. Generate answer with citations (chunk_id, image_id)
-4. Explain image usage decisions
-    ↓
-[UI] Display answer + sources + images with confidence badges
-```
-
-**Key Innovations:** 
-1. Adaptive hybrid retrieval (metadata + semantic + visual fallback)
-2. Semantic verification with enriched captions
-3. Confidence-based image ranking
-4. API optimization (batch + cache)
-
----
-
-## 11. Success Criteria
-
-✅ **Phase 1-2 (Complete):**
-- 3 papers chunked into 104 segments
-- 9 images with enriched captions (3,262 chars avg)
-- ChromaDB built with 113 total documents
-- Anti-hallucination metadata implemented
-
-✅ **Phase 3 (90% Complete):**
-- Retriever returns 0-3 relevant images per query (deduplicated)
-- Text retrieval: top-3 chunks, batch embedded, cached
-- Adaptive retrieval: visual query detection + semantic verification
-- Confidence tiers working: HIGH (explicit refs), MEDIUM (0.6+ similarity), LOW (0.5+ fallback)
-- API optimization: 26 calls → ~8 calls per query
-- LLM-ready format: structured output with captions, confidence, similarity
-- Tested: "show encoder decoder" → 3 images, all MEDIUM confidence (0.62-0.77)
-- No false image-text associations (validated)
-- Generator pending implementation
-
-⏳ **Phase 4 (Pending):**
-- LLM generates grounded answers with citations
-- UI displays results with source traceability
-- Evaluation: Recall@5 ≥70%, Image Hit Rate ≥60%
