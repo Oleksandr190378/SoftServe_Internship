@@ -70,21 +70,34 @@ A multimodal RAG system that allows users to:
 
 ### 3.1 Data Sources
 
-| Source | Type | Approximate Volume | Access Method |
-|--------|------|-------------------|---------------|
-| **arXiv papers** | PDF (CS.LG, CS.AI) | 30-50 papers | arXiv API + manual curation |
-| **Medium/TDS articles** | Web articles (HTML) | 20-30 articles | Web scraping (offline) |
-| **Wikipedia** | Structured text + images | 15-25 articles | Wikipedia API |
-| **Official docs** | Markdown/HTML | 10-15 documentation pages | Manual download |
+| Source | Type | Actual Volume | Access Method |
+|--------|------|---------------|---------------|
+| **arXiv papers** | PDF (CS.LG, CS.AI, CS.CV) | **35 papers** | arXiv API + manual curation |
+| **RealPython tutorials** | Web articles (HTML) | **9 articles** | Web scraping (offline) |
+| **Medium/TDS articles** | Web articles (HTML) | **10 articles** | Web scraping (offline) |
+| **Official docs** | Markdown/HTML | 0 pages (optional future addition) | Manual download |
 
 ### 3.2 Content Composition
-- **Total documents:** 75-120 documents
-- **Total images:** 150-400 images
-  - Architecture diagrams (CNNs, RNNs, Transformers, etc.)
+- **Total documents:** **54 documents** (35 papers + 9 RealPython + 10 Medium/TDS)
+- **Coverage:**
+  - **arXiv Papers (35):**
+    - Foundations (3): Transformers, ResNet, VGG
+    - LLMs (6): BERT, GPT-3, XLNet, InstructGPT, Scaling Laws, RoBERTa
+    - Vision (12): YOLO, ViT, Mask R-CNN, EfficientNet, Swin, DenseNet, ResNeXt, NiN, Inception, U-Net, Layer Norm, MobileNets
+    - Multimodal (2): CLIP, RAG
+    - Generative (4): DDPM, GANs, VAE, Stable Diffusion
+    - Optimization (4): Batch Norm, Dropout, LoRA, AdamW
+    - RNN/Seq (2): GRU, Seq2Seq
+    - RL (2): DQN, PPO
+    - GNN (1): GCN
+  - **RealPython (9):** Neural networks basics, GANs, NLP/Text Classification, PyTorch vs TensorFlow, Gradient Descent, Face Recognition, Pillow Image Processing, Pandas Data Exploration, NumPy Tutorial
+  - **Medium/TDS (10):** RAG evaluation, Chunk size in RAG, Agents planning, Production LLMs, Transformers/Self-Attention, Search metrics (MAP/MRR/NDCG), LLM reasoning, AI hallucinations, Generative AI UX, Gradient descent variants
+- **Estimated images:** 200-350 images (from papers + tutorials)
+  - Architecture diagrams (CNNs, RNNs, Transformers, GANs, Diffusion)
   - Algorithm flowcharts
-  - Mathematical formula images
+  - Mathematical formulas
   - Training curves / performance graphs
-  - Conceptual illustrations
+  - Code visualization / data exploration plots
 
 ### 3.3 Image-Text Relationship
 Images are linked to text through:
