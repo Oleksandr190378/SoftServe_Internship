@@ -1,0 +1,68 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# Environment variables
+.env
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+*.ipynb
+
+# Data files (ignore entire data folder - large files)
+data/
+
+# Keep directory structure with .gitkeep files
+!data/.gitkeep
+!data/raw_data/.gitkeep
+!data/processed/.gitkeep
+!data/processed/images/.gitkeep
+!data/chroma_db/.gitkeep
+
+# Model files (if downloading any)
+*.bin
+*.safetensors
+*.gguf
+models/
+
+# Evaluation results
+eval/results/
+*.csv
+*.xlsx
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# Streamlit
+.streamlit/
+
+# Temporary files
+*.tmp
+temp/

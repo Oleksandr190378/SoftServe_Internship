@@ -36,9 +36,6 @@ DEFAULT_CATEGORIES = ["cs.LG", "cs.AI", "cs.CV"]
 DEFAULT_OUTPUT_DIR = Path(__file__).parent.parent / "data" / "raw" / "papers"
 DEFAULT_NUM_PAPERS = 10
 
-# Top-35 curated AI/ML papers for COMPLETE Deep Learning coverage
-# Excluding already downloaded: 1706.03762 (Transformers), 1512.03385 (ResNet), 1409.1556 (VGG)
-# Coverage: LLMs (6), Vision (12), Multimodal (2), Generative (4), Optimization (4), RNN (2), RL (2), GNN (1), Architectures (2)
 CURATED_PAPERS = [
     # === LLMs & Transformers (6) ===
     "1810.04805",  # BERT - Bidirectional attention, pre-training
@@ -90,7 +87,6 @@ CURATED_PAPERS = [
     "1609.02907",  # GCN - Semi-Supervised Classification with Graph Convolutional Networks
 ]
 
-# Full collection (41 additional papers) - for future expansion
 CURATED_PAPERS_FULL = [
     # Золотий фонд (вже завантажені)
     "1706.03762", "1512.03385", "1409.1556",
@@ -278,18 +274,15 @@ def download_papers(
         categories = DEFAULT_CATEGORIES
     
     output_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Download based on mode
+
     if mode == "curated":
         if paper_ids:
-            # Use provided paper IDs
             global CURATED_PAPERS
             original_list = CURATED_PAPERS
             CURATED_PAPERS = paper_ids
             papers_metadata = download_curated_papers(output_dir, len(paper_ids))
             CURATED_PAPERS = original_list
         else:
-            # Use default curated list
             papers_metadata = download_curated_papers(output_dir, max_papers)
     else:
         papers_metadata = search_and_download_papers(
@@ -298,12 +291,10 @@ def download_papers(
             output_dir=output_dir,
             max_results=max_papers
         )
-    
-    # Save metadata
+
     if papers_metadata:
         save_metadata(papers_metadata, output_dir)
-    
-    # Return list of doc_ids for tracking
+
     doc_ids = [paper["doc_id"] for paper in papers_metadata]
     logging.info(f"Downloaded {len(doc_ids)} papers: {doc_ids}")
     
@@ -357,8 +348,7 @@ def main():
     output_dir = Path(args.output)
     categories = args.categories.split(",")
     paper_ids = args.paper_ids.split(",") if args.paper_ids else None
-    
-    # CLI output (print is OK here for user-facing interface)
+
     print("=" * 70)
     print("📚 arXiv Papers Downloader - AI/ML Course Assistant")
     print("=" * 70)
@@ -369,8 +359,7 @@ def main():
         print(f"Paper IDs: {paper_ids}")
     print("=" * 70)
     print()
-    
-    # Use API function
+
     doc_ids = download_papers(
         paper_ids=paper_ids,
         mode=args.mode,

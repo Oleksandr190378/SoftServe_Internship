@@ -37,9 +37,6 @@ logging.basicConfig(
 DEFAULT_OUTPUT_DIR = Path(__file__).parent.parent / "data" / "raw" / "medium"
 DEFAULT_NUM_ARTICLES = 10
 
-# Top-10 curated Medium/TDS articles - VERIFIED URLs from recent publications (Jan 2026)
-# Coverage: RAG evaluation, chunking, agents, transformers, agentic AI, LLM optimization, ethics
-# Focus: Direct relevance to multimodal RAG systems with practical insights
 CURATED_ARTICLES = [
     {
         "url": "https://towardsdatascience.com/doing-evals-on-a-bloated-rag-pipeline/",

@@ -37,8 +37,6 @@ logging.basicConfig(
 DEFAULT_OUTPUT_DIR = Path(__file__).parent.parent / "data" / "raw" / "realpython"
 DEFAULT_NUM_ARTICLES = 10
 
-# Top-10 curated RealPython tutorials for practical ML/DL implementation
-# Coverage: Neural Networks, GANs, NLP, Classical ML, Optimization, Frameworks, CV, Data Processing
 CURATED_ARTICLES = [
     {
         "url": "https://realpython.com/python-ai-neural-network/",
@@ -126,51 +124,43 @@ def download_article(url: str, slug: str, output_dir: Path) -> Optional[Dict]:
         Article metadata dictionary or None if failed
     """
     try:
-        # Send GET request
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
         response = requests.get(url, headers=headers, timeout=30)
         response.raise_for_status()
-        
-        # Parse HTML
+
         soup = BeautifulSoup(response.content, 'html.parser')
-        
-        # Extract article body
+
         article_body = soup.find(class_="article-body")
         if not article_body:
             logging.error(f"  Could not find article-body in {url}")
             return None
-        
-        # Extract title
+
         title_elem = soup.find('h1')
         title = title_elem.get_text(strip=True) if title_elem else slug
-        
-        # Extract text content
+
         paragraphs = article_body.find_all('p')
         text_content = '\n\n'.join([p.get_text(strip=True) for p in paragraphs if p.get_text(strip=True)])
-        
-        # Extract code blocks
+
         code_blocks = article_body.find_all('pre')
         code_content = []
         for idx, code in enumerate(code_blocks, 1):
             code_text = code.get_text(strip=True)
-            language = 'python'  # Most RealPython code is Python
+            language = 'python'  
             code_content.append({
                 'index': idx,
                 'language': language,
                 'code': code_text
             })
-        
-        # Extract headings (for structure)
+
         headings = article_body.find_all(['h2', 'h3', 'h4'])
         structure = []
         for heading in headings:
             level = heading.name
             text = heading.get_text(strip=True)
             structure.append({'level': level, 'text': text})
-        
-        # Extract images
+
         images = article_body.find_all('img')
         image_list = []
         for idx, img in enumerate(images, 1):
@@ -182,8 +172,7 @@ def download_article(url: str, slug: str, output_dir: Path) -> Optional[Dict]:
                     'url': img_url,
                     'alt_text': alt_text
                 })
-        
-        # Create metadata
+
         metadata = {
             'doc_id': f'realpython_{slug}',
             'url': url,
@@ -204,8 +193,7 @@ def download_article(url: str, slug: str, output_dir: Path) -> Optional[Dict]:
                 'headings': len(structure)
             }
         }
-        
-        # Save as JSON
+
         article_dir = output_dir / slug
         article_dir.mkdir(parents=True, exist_ok=True)
         
@@ -244,8 +232,6 @@ def download_curated_articles(output_dir: Path, num_articles: int = 10) -> List[
         url = article['url']
         slug = article['slug']
         title = article['title']
-        
-        # Check if already exists
         article_dir = output_dir / slug
         json_path = article_dir / f"{slug}.json"
         
@@ -259,7 +245,7 @@ def download_curated_articles(output_dir: Path, num_articles: int = 10) -> List[
             metadata = download_article(url, slug, output_dir)
             if metadata:
                 articles_metadata.append(metadata)
-            time.sleep(2)  # Be polite with rate limiting
+            time.sleep(2)  
     
     return articles_metadata
 
@@ -312,15 +298,12 @@ def download_articles(
         output_dir = DEFAULT_OUTPUT_DIR
     
     output_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Download curated articles
+
     articles_metadata = download_curated_articles(output_dir, max_articles)
-    
-    # Save summary metadata
+
     if articles_metadata:
         save_summary_metadata(articles_metadata, output_dir)
-    
-    # Return list of doc_ids for tracking
+
     doc_ids = [article['doc_id'] for article in articles_metadata]
     logging.info(f"Downloaded {len(doc_ids)} articles: {doc_ids}")
     
@@ -348,8 +331,7 @@ def main():
     args = parser.parse_args()
     
     output_dir = Path(args.output)
-    
-    # CLI output
+
     print("=" * 70)
     print("🐍 RealPython Tutorials Downloader - AI/ML Course Assistant")
     print("=" * 70)
@@ -357,8 +339,7 @@ def main():
     print(f"Number of articles: {args.num_articles}")
     print("=" * 70)
     print()
-    
-    # Use API function
+
     doc_ids = download_articles(
         output_dir=output_dir,
         max_articles=args.num_articles

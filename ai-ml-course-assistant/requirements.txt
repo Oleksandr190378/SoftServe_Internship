@@ -1,0 +1,58 @@
+# AI/ML Course Assistant - Python Dependencies
+
+# Core Framework
+langchain==0.1.0
+langchain-community==0.0.13
+langchain-openai==0.0.5
+langchain-groq==0.1.0
+
+# Vector Database
+chromadb==0.4.22
+
+# Embeddings (OpenAI)
+openai==1.7.2
+
+# UI Framework
+streamlit==1.32.0
+
+# PDF Processing
+PyMuPDF==1.23.8
+pdfplumber==0.10.3
+
+# Web Scraping (for articles)
+requests==2.31.0
+beautifulsoup4==4.12.3
+lxml==5.1.0
+
+# Data Processing
+pandas==2.1.4
+numpy==1.26.3
+
+# arXiv API
+arxiv==2.1.0
+
+# UI
+streamlit==1.29.0
+streamlit-extras==0.3.6
+
+# Configuration
+python-dotenv==1.0.0
+pydantic==2.5.3
+pydantic-settings==2.1.0
+
+# Evaluation
+scikit-learn==1.4.0
+rouge-score==0.1.2
+
+# Utilities
+tqdm==4.66.1
+pyyaml==6.0.1
+
+# Optional: Local LLM support
+# ollama-python==0.1.5
+
+# Development tools (optional)
+# jupyter==1.0.0
+# ipykernel==6.28.0
+# black==23.12.1
+# flake8==7.0.0
