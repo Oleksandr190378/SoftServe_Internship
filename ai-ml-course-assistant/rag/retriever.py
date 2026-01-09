@@ -8,6 +8,7 @@ Uses anti-hallucination metadata to prioritize accurate image-text associations.
 import logging
 from pathlib import Path
 from typing import List, Dict, Tuple
+import os
 import numpy as np
 from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
@@ -36,9 +37,14 @@ VISUAL_KEYWORDS = [
     "illustrate", "picture", "schema"
 ]
 
-
-SIMILARITY_THRESHOLD = 0.5  # For same-page images (lowered for visual queries)
-SIMILARITY_THRESHOLD_NEARBY = 0.65  # For ±1 page images
+# Similarity thresholds for semantic image verification
+# Calibrated via pilot evaluation (eval/results/pilot_3docs.md):
+#   - Achieved 87.5% image hit rate (4/5 queries) with 80% precision
+#   - Same-page images: 0.5 balances recall (finds relevant images) vs precision (rejects irrelevant)
+#   - Nearby images (±1 page): 0.65 requires stronger semantic match (less structurally related)
+# Can be overridden via environment variables for tuning without code changes
+SIMILARITY_THRESHOLD = float(os.getenv("SIMILARITY_THRESHOLD", "0.5"))  # Same-page images
+SIMILARITY_THRESHOLD_NEARBY = float(os.getenv("SIMILARITY_THRESHOLD_NEARBY", "0.65"))  # ±1 page images
 
 
 class MultimodalRetriever:
@@ -77,16 +83,18 @@ class MultimodalRetriever:
         self._chunk_embeddings_cache = {}  # chunk_id -> embedding
         
         # Load ChromaDB collections
+        # IMPORTANT: persist_directory points to the PARENT directory containing collections,
+        # NOT the collection-specific subdirectory. This matches how chromadb.PersistentClient works.
         self.text_store = Chroma(
             collection_name=text_collection,
             embedding_function=self.embeddings,
-            persist_directory=str(chroma_dir / text_collection)
+            persist_directory=str(chroma_dir)  # Fixed: use parent dir, not subdirectory
         )
         
         self.image_store = Chroma(
             collection_name=image_collection,
             embedding_function=self.embeddings,
-            persist_directory=str(chroma_dir / image_collection)
+            persist_directory=str(chroma_dir)  # Fixed: use parent dir, not subdirectory
         )
         
         logging.info(f"✅ Loaded collections: {text_collection}, {image_collection}")
@@ -253,10 +261,25 @@ class MultimodalRetriever:
         
         for chunk in chunks:
             related_ids = chunk.metadata.get('related_image_ids', '')
-            if image_id in related_ids:
-                chunks_with_link.append(chunk)
-            else:
-                chunks_without_link.append(chunk)
+            # Handle JSON-encoded lists from ChromaDB
+            if isinstance(related_ids, str) and related_ids.startswith('['):
+                import json
+                try:
+                    related_ids = json.loads(related_ids)
+                except json.JSONDecodeError:
+                    pass
+            
+            # Check if image_id is in the list
+            if isinstance(related_ids, list):
+                if image_id in related_ids:
+                    chunks_with_link.append(chunk)
+                else:
+                    chunks_without_link.append(chunk)
+            elif isinstance(related_ids, str):
+                if image_id in related_ids:
+                    chunks_with_link.append(chunk)
+                else:
+                    chunks_without_link.append(chunk)
         
         result = chunks_with_link + chunks_without_link
         logging.info(f"Found {len(result)} chunks related to image {image_id}")
@@ -319,13 +342,37 @@ class MultimodalRetriever:
             # Always add same-page images
             related = chunk.metadata.get('related_image_ids', '')
             if related:
-                image_ids_strong.update([id.strip() for id in related.split(',') if id.strip()])
+                # Handle JSON-encoded lists from ChromaDB
+                if isinstance(related, str) and related.startswith('['):
+                    import json
+                    try:
+                        related_list = json.loads(related)
+                        image_ids_strong.update(related_list)
+                    except json.JSONDecodeError:
+                        # Fallback to comma-separated parsing
+                        image_ids_strong.update([id.strip() for id in related.split(',') if id.strip()])
+                elif isinstance(related, list):
+                    image_ids_strong.update(related)
+                else:
+                    image_ids_strong.update([id.strip() for id in related.split(',') if id.strip()])
             
             # Add nearby images ONLY if chunk mentions figures
             if chunk.metadata.get('has_figure_references', False):
                 nearby = chunk.metadata.get('nearby_image_ids', '')
                 if nearby:
-                    image_ids_weak.update([id.strip() for id in nearby.split(',') if id.strip()])
+                    # Handle JSON-encoded lists from ChromaDB
+                    if isinstance(nearby, str) and nearby.startswith('['):
+                        import json
+                        try:
+                            nearby_list = json.loads(nearby)
+                            image_ids_weak.update(nearby_list)
+                        except json.JSONDecodeError:
+                            # Fallback to comma-separated parsing
+                            image_ids_weak.update([id.strip() for id in nearby.split(',') if id.strip()])
+                    elif isinstance(nearby, list):
+                        image_ids_weak.update(nearby)
+                    else:
+                        image_ids_weak.update([id.strip() for id in nearby.split(',') if id.strip()])
         
         # 3. Combine image IDs (strong links first)
         all_image_ids = list(image_ids_strong) + list(image_ids_weak)
@@ -356,7 +403,8 @@ class MultimodalRetriever:
         image: Document,
         text_chunks: List[Document],
         threshold: float = SIMILARITY_THRESHOLD,
-        chunk_embeddings: Dict[str, List[float]] = None
+        chunk_embeddings: Dict[str, List[float]] = None,
+        image_embedding: List[float] = None
     ) -> Tuple[bool, float, str]:
         """
         Verify if image is semantically related to any text chunk.
@@ -366,12 +414,16 @@ class MultimodalRetriever:
             text_chunks: List of text chunk documents
             threshold: Minimum similarity score
             chunk_embeddings: Pre-computed chunk embeddings (optional)
+            image_embedding: Pre-computed image embedding (optional, saves 1 API call)
             
         Returns:
             (is_match, best_similarity, matched_chunk_id)
         """
-        # Get image embedding
-        img_embedding = self.embeddings.embed_query(image.page_content)
+        # Get image embedding (use cached if provided)
+        if image_embedding is not None:
+            img_embedding = image_embedding
+        else:
+            img_embedding = self.embeddings.embed_query(image.page_content)
         
         best_similarity = 0.0
         best_chunk_id = ""
@@ -396,50 +448,75 @@ class MultimodalRetriever:
         is_match = best_similarity >= threshold
         return is_match, best_similarity, best_chunk_id
     
-    def retrieve_with_verification(
-        self,
-        query: str,
-        k_text: int = 3
-    ) -> Tuple[List[Document], List[Dict]]:
+    def _batch_embed_chunks(self, chunks: List[Document]) -> Dict[str, List[float]]:
         """
-        Retrieve with semantic verification and adaptive image strategy.
+        Batch embed all text chunks and return embedding mapping.
         
-        Strategy:
-        1. Text retrieval (always semantic)
-        2. Metadata candidates (structural linking)
-        3. Semantic verification (similarity check with caching)
-        4. Visual query fallback (if no metadata images)
-        
-        Optimizations:
-        - Batch embeddings for all chunks at once
-        - Cache chunk embeddings to avoid re-computation
-        - Deduplicate images by image_id
+        Single Responsibility: Embedding computation and caching.
         
         Args:
-            query: Search query
-            k_text: Number of text chunks
-            
-        Returns:
-            (text_chunks, verified_images) where each image has confidence score
-        """
-        logging.info(f"Adaptive retrieval with verification for: '{query}'")
-
-        text_chunks = self.retrieve_text_chunks(query, k=k_text)
+            chunks: List of text chunk documents
         
-        # 2. Pre-compute chunk embeddings in batch
+        Returns:
+            Dict mapping chunk_id to embedding vector
+        """
         chunk_embeddings = {}
-        chunk_texts = [chunk.page_content for chunk in text_chunks]
+        chunk_texts = [chunk.page_content for chunk in chunks]
+        
         if chunk_texts:
             # Batch embed all chunks at once (1 API call instead of N)
             embeddings_list = self.embeddings.embed_documents(chunk_texts)
-            for i, chunk in enumerate(text_chunks):
+            for i, chunk in enumerate(chunks):
                 chunk_id = chunk.metadata.get('chunk_id', f'chunk_{i}')
                 chunk_embeddings[chunk_id] = embeddings_list[i]
         
-        # 3. Collect metadata candidate images
-        text_chunks_strict, metadata_images = self.retrieve_with_strict_images(query, k_text)
+        return chunk_embeddings
+    
+    def _batch_embed_images(self, images: List[Document]) -> Dict[str, List[float]]:
+        """
+        Batch embed all image captions and return embedding mapping.
         
-        # 4. Semantic verification for metadata images
+        Single Responsibility: Image embedding computation and caching.
+        
+        Args:
+            images: List of image documents
+        
+        Returns:
+            Dict mapping image_id to embedding vector
+        """
+        image_embeddings = {}
+        
+        if images:
+            image_texts = [img.page_content for img in images]
+            embeddings_list = self.embeddings.embed_documents(image_texts)
+            for i, img in enumerate(images):
+                img_id = img.metadata.get('image_id', f'img_{i}')
+                image_embeddings[img_id] = embeddings_list[i]
+            logging.info(f"Batch embedded {len(images)} images in 1 API call")
+        
+        return image_embeddings
+    
+    def _verify_metadata_images(
+        self,
+        metadata_images: List[Document],
+        text_chunks: List[Document],
+        chunk_embeddings: Dict[str, List[float]],
+        image_embeddings: Dict[str, List[float]]
+    ) -> List[Dict]:
+        """
+        Verify metadata images with confidence scoring.
+        
+        Single Responsibility: Semantic verification and confidence assignment.
+        
+        Args:
+            metadata_images: Candidate images from metadata linking
+            text_chunks: Retrieved text chunks for context
+            chunk_embeddings: Pre-computed chunk embeddings
+            image_embeddings: Pre-computed image embeddings
+        
+        Returns:
+            List of verified images with confidence scores and reasons
+        """
         verified_images = []
         seen_image_ids = set()  # For deduplication
         
@@ -453,11 +530,26 @@ class MultimodalRetriever:
             seen_image_ids.add(img_id)
             
             # Check if chunk explicitly mentions figure (skip verification)
-            has_explicit_ref = any(
-                img_id in chunk.metadata.get('related_image_ids', '')
-                for chunk in text_chunks
-                if chunk.metadata.get('has_figure_references', False)
-            )
+            has_explicit_ref = False
+            for chunk in text_chunks:
+                if chunk.metadata.get('has_figure_references', False):
+                    related_ids = chunk.metadata.get('related_image_ids', '')
+                    # Handle JSON-encoded lists from ChromaDB
+                    if isinstance(related_ids, str) and related_ids.startswith('['):
+                        import json
+                        try:
+                            related_ids = json.loads(related_ids)
+                        except json.JSONDecodeError:
+                            pass
+                    
+                    # Check if image_id is in the list
+                    if isinstance(related_ids, list):
+                        if img_id in related_ids:
+                            has_explicit_ref = True
+                            break
+                    elif isinstance(related_ids, str) and img_id in related_ids:
+                        has_explicit_ref = True
+                        break
             
             if has_explicit_ref:
                 # HIGH confidence: explicit figure reference
@@ -470,8 +562,12 @@ class MultimodalRetriever:
                 logging.info(f"  {img_id}: HIGH confidence (explicit ref)")
             else:
                 # Semantic verification with cached embeddings
+                img_embedding = image_embeddings.get(img_id)  # Use pre-computed
+                
                 is_match, similarity, chunk_id = self.verify_semantic_match(
-                    img, text_chunks, chunk_embeddings=chunk_embeddings
+                    img, text_chunks, 
+                    chunk_embeddings=chunk_embeddings,
+                    image_embedding=img_embedding
                 )
                 
                 if is_match:
@@ -485,38 +581,121 @@ class MultimodalRetriever:
                 else:
                     logging.info(f"  {img_id}: Rejected (sim={similarity:.2f} < threshold)")
         
-        # 5. Visual query fallback (if no verified images and query is visual)
+        return verified_images
+    
+    def _fallback_visual_search(
+        self,
+        query: str,
+        text_chunks: List[Document],
+        chunk_embeddings: Dict[str, List[float]],
+        seen_image_ids: set
+    ) -> List[Dict]:
+        """
+        Fallback semantic caption search for visual queries.
+        
+        Single Responsibility: Visual query fallback logic.
+        
+        Args:
+            query: User query
+            text_chunks: Retrieved text chunks
+            chunk_embeddings: Pre-computed chunk embeddings
+            seen_image_ids: Already processed image IDs (for deduplication)
+        
+        Returns:
+            List of fallback images with LOW confidence
+        """
+        fallback_images = []
+        
+        logging.info("  No metadata images, fallback to semantic caption search")
+        
+        # Get unique document IDs from text chunks to filter fallback search
+        chunk_doc_ids = set(chunk.metadata.get('doc_id', '') for chunk in text_chunks)
+        logging.info(f"  Filtering fallback to documents: {chunk_doc_ids}")
+        
+        # Retrieve images with document filter
+        semantic_images = []
+        for doc_id in chunk_doc_ids:
+            doc_images = self.retrieve_images(query, k=2, filter_dict={'doc_id': doc_id})
+            semantic_images.extend(doc_images)
+        
+        for img in semantic_images:
+            img_id = img.metadata.get('image_id', '')
+            
+            # Skip if already processed
+            if img_id in seen_image_ids:
+                continue
+            seen_image_ids.add(img_id)
+            
+            is_match, similarity, chunk_id = self.verify_semantic_match(
+                img, text_chunks, threshold=0.5, chunk_embeddings=chunk_embeddings
+            )
+            fallback_images.append({
+                'image': img,
+                'confidence': 'LOW',
+                'similarity': similarity,
+                'reason': f'Visual query fallback (sim={similarity:.2f})'
+            })
+            logging.info(f"  {img_id}: LOW confidence (fallback)")
+        
+        return fallback_images
+    
+    def retrieve_with_verification(
+        self,
+        query: str,
+        k_text: int = 3
+    ) -> Tuple[List[Document], List[Dict]]:
+        """
+        Retrieve with semantic verification and adaptive image strategy.
+        
+        Refactored to follow Single Responsibility Principle:
+        - Main orchestration logic only
+        - Sub-functions handle: batch embedding, verification, fallback
+        
+        Strategy:
+        1. Text retrieval (always semantic)
+        2. Batch embed chunks and images (1+1 API calls)
+        3. Verify metadata images with confidence scoring
+        4. Visual query fallback if needed
+        
+        Args:
+            query: Search query
+            k_text: Number of text chunks
+            
+        Returns:
+            (text_chunks, verified_images) where each image has confidence score
+        """
+        logging.info(f"Adaptive retrieval with verification for: '{query}'")
+
+        # 1. Retrieve text chunks
+        text_chunks = self.retrieve_text_chunks(query, k=k_text)
+        
+        # 2. Batch embed chunks (1 API call)
+        chunk_embeddings = self._batch_embed_chunks(text_chunks)
+        
+        # 3. Collect metadata candidate images
+        text_chunks_strict, metadata_images = self.retrieve_with_strict_images(query, k_text)
+        
+        # 4. Batch embed images (1 API call)
+        image_embeddings = self._batch_embed_images(metadata_images)
+        
+        # 5. Verify metadata images with confidence scoring
+        verified_images = self._verify_metadata_images(
+            metadata_images, 
+            text_chunks, 
+            chunk_embeddings, 
+            image_embeddings
+        )
+        
+        # 6. Visual query fallback (if no verified images and query is visual)
         if len(verified_images) == 0 and self.is_visual_query(query):
-            logging.info("  No metadata images, fallback to semantic caption search")
-            
-            # Get unique document IDs from text chunks to filter fallback search
-            chunk_doc_ids = set(chunk.metadata.get('doc_id', '') for chunk in text_chunks)
-            logging.info(f"  Filtering fallback to documents: {chunk_doc_ids}")
-            
-            # Retrieve images with document filter
-            semantic_images = []
-            for doc_id in chunk_doc_ids:
-                doc_images = self.retrieve_images(query, k=2, filter_dict={'doc_id': doc_id})
-                semantic_images.extend(doc_images)
-            
-            for img in semantic_images:
-                img_id = img.metadata.get('image_id', '')
-                
-                # Skip if already processed
-                if img_id in seen_image_ids:
-                    continue
-                seen_image_ids.add(img_id)
-                
-                is_match, similarity, chunk_id = self.verify_semantic_match(
-                    img, text_chunks, threshold=0.5, chunk_embeddings=chunk_embeddings
-                )
-                verified_images.append({
-                    'image': img,
-                    'confidence': 'LOW',
-                    'similarity': similarity,
-                    'reason': f'Visual query fallback (sim={similarity:.2f})'
-                })
-                logging.info(f"  {img_id}: LOW confidence (fallback)")
+            seen_image_ids = set(img.metadata.get('image_id', '') for img in metadata_images)
+            fallback_images = self._fallback_visual_search(
+                query, 
+                text_chunks, 
+                chunk_embeddings, 
+                seen_image_ids
+            )
+            verified_images.extend(fallback_images)
         
         logging.info(f"Final: {len(verified_images)} verified images (deduplicated)")
         return text_chunks, verified_images

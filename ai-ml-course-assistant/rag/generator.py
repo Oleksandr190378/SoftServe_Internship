@@ -1,5 +1,5 @@
 """
-RAG Answer Generator with Groq LLM.
+RAG Answer Generator .
 
 Generates grounded answers with citations from retrieved context.
 Enforces topic validation and "I don't know" behavior.
@@ -23,8 +23,55 @@ logging.basicConfig(
 # OpenAI GPT-5 Nano configuration
 MODEL_NAME = "gpt-5-nano"
 TEMPERATURE = 0.1  # Low for grounded, factual answer10
-MAX_TOKENS = 15000  # Reasoning (up to 8000) + answer (up to 4000) (model supports up to 128K)
-REASONING_EFFORT = "medium"  # Balance between speed and quality (can use up to 8000 tokens for reasoning)
+MAX_TOKENS = 10000  # Reasoning (up to 4000-5000) + answer (up to 4000)
+REASONING_EFFORT = "low"  # Faster, less reasoning tokens (~2000-4000 instead of 8000)
+
+# Query validation
+MAX_QUERY_LENGTH = 500  # Maximum query length
+
+
+def sanitize_query(query: str) -> str:
+    """
+    Sanitize user query to prevent prompt injection attacks.
+    
+    Security measures:
+    1. Remove control characters (\x00-\x1f, \x7f-\x9f)
+    2. Limit length to prevent token exhaustion
+    3. Filter prompt-breaking patterns
+    
+    Args:
+        query: Raw user query
+    
+    Returns:
+        Sanitized query string
+    """
+    if not query:
+        return ""
+    
+    # Remove control characters
+    query = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', query)
+    
+    # Limit length
+    if len(query) > MAX_QUERY_LENGTH:
+        logging.warning(f"Query truncated from {len(query)} to {MAX_QUERY_LENGTH} chars")
+        query = query[:MAX_QUERY_LENGTH]
+    
+    # Filter prompt injection patterns (case-insensitive)
+    injection_patterns = [
+        (r'ignore\s+previous\s+instructions?', '[FILTERED]'),
+        (r'ignore\s+above', '[FILTERED]'),
+        (r'forget\s+(?:everything|all|previous)', '[FILTERED]'),
+        (r'disregard\s+(?:previous|above)', '[FILTERED]'),
+        (r'override\s+(?:system|instructions?)', '[FILTERED]'),
+        (r'reveal\s+(?:system|prompt)', '[FILTERED]'),
+        (r'you\s+are\s+now', '[FILTERED]'),
+        (r'new\s+instructions?:', '[FILTERED]')
+    ]
+    
+    for pattern, replacement in injection_patterns:
+        query = re.sub(pattern, replacement, query, flags=re.IGNORECASE)
+    
+    return query.strip()
 
 # System prompt enforcing grounding and citations
 SYSTEM_PROMPT = """You are an expert AI/ML course assistant specializing in deep learning and machine learning.
@@ -238,12 +285,14 @@ class RAGGenerator:
     
     def parse_response(self, response_text: str, llm_input: Dict) -> Dict:
         """
-        Parse LLM response into structured output.
+        Parse LLM response into structured output with robust fallback.
         
         Expected format:
             Answer: <text with citations>
             Sources: [1], [2], [A]
             Reasoning: <explanation>
+        
+        Fallback: If format doesn't match, returns full text as answer.
         
         Args:
             response_text: Raw LLM response
@@ -252,12 +301,42 @@ class RAGGenerator:
         Returns:
             Dict with answer, citations, reasoning, flags
         """
-        # Extract sections using regex
-        answer_match = re.search(r'Answer:\s*(.+?)(?=\n\s*Sources:|$)', response_text, re.DOTALL)
-        sources_match = re.search(r'Sources:\s*(.+?)(?=\n\s*Reasoning:|$)', response_text, re.DOTALL)
-        reasoning_match = re.search(r'Reasoning:\s*(.+?)$', response_text, re.DOTALL)
+        # Extract sections using case-insensitive regex with flexible whitespace
+        answer_match = re.search(
+            r'(?:Answer|ANSWER)[:\s]*(.+?)(?=(?:Sources|SOURCES)[:\s]|$)', 
+            response_text, 
+            re.DOTALL | re.IGNORECASE
+        )
+        sources_match = re.search(
+            r'(?:Sources|SOURCES)[:\s]*(.+?)(?=(?:Reasoning|REASONING)[:\s]|$)', 
+            response_text, 
+            re.DOTALL | re.IGNORECASE
+        )
+        reasoning_match = re.search(
+            r'(?:Reasoning|REASONING)[:\s]*(.+?)$', 
+            response_text, 
+            re.DOTALL | re.IGNORECASE
+        )
         
-        answer = answer_match.group(1).strip() if answer_match else response_text.strip()
+        # Fallback if parsing fails
+        if not answer_match:
+            logging.warning(
+                "LLM response doesn't match expected format. "
+                "Using full text as answer (no structured parsing)."
+            )
+            return {
+                'answer': response_text.strip(),
+                'cited_chunks': [],
+                'cited_images': [],
+                'sources_text': '',
+                'reasoning': '',
+                'is_off_topic': False,
+                'is_insufficient_context': False,
+                'raw_response': response_text,
+                'parsing_failed': True
+            }
+        
+        answer = answer_match.group(1).strip()
         sources_text = sources_match.group(1).strip() if sources_match else ""
         reasoning = reasoning_match.group(1).strip() if reasoning_match else ""
         
@@ -298,11 +377,12 @@ class RAGGenerator:
         Generate answer from retrieval results.
         
         Full pipeline:
-        1. Format context for LLM
-        2. Create messages (system + user)
-        3. Call Groq LLM
-        4. Parse response
-        5. Return structured result
+        1. Sanitize query input
+        2. Format context for LLM
+        3. Create messages (system + user)
+        4. Call Groq LLM
+        5. Parse response
+        6. Return structured result
         
         Args:
             llm_input: Output from retriever.prepare_for_llm()
@@ -310,6 +390,13 @@ class RAGGenerator:
         Returns:
             Dict with answer, citations, reasoning, metadata
         """
+        # Sanitize query to prevent prompt injection
+        original_query = llm_input['query']
+        llm_input['query'] = sanitize_query(original_query)
+        
+        if original_query != llm_input['query']:
+            logging.warning(f"Query sanitized: '{original_query}' -> '{llm_input['query']}'")
+        
         logging.info(f"Generating answer for query: '{llm_input['query']}'")
         
         # Format context

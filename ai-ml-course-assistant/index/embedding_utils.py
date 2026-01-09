@@ -12,6 +12,7 @@ import logging
 import time
 from typing import List, Dict, Tuple
 from openai import OpenAI
+import openai
 
 
 EMBEDDING_MODEL = "text-embedding-3-small"
@@ -89,8 +90,17 @@ def embed_chunks(
             batch_tokens = sum(len(text) for text in texts) / 4
             total_tokens += batch_tokens
             
+        except openai.AuthenticationError:
+            logging.error(f"Batch {batch_num}: OpenAI authentication failed. Check API key.")
+            raise
+        except openai.RateLimitError:
+            logging.error(f"Batch {batch_num}: Rate limit exceeded. Consider reducing batch size or adding delays.")
+            raise
+        except openai.APIError as e:
+            logging.error(f"Batch {batch_num}: OpenAI API error: {type(e).__name__}")
+            raise
         except Exception as e:
-            logging.error(f"Error in batch {batch_num}: {e}")
+            logging.error(f"Batch {batch_num}: Unexpected error: {type(e).__name__}")
             raise
         
         # Rate limiting
@@ -162,8 +172,17 @@ def embed_images(
         
         return images_with_embeddings, cost_usd
         
+    except openai.AuthenticationError:
+        logging.error("Image embeddings: OpenAI authentication failed. Check API key.")
+        raise
+    except openai.RateLimitError:
+        logging.error("Image embeddings: Rate limit exceeded. Consider adding delays between requests.")
+        raise
+    except openai.APIError as e:
+        logging.error(f"Image embeddings: OpenAI API error: {type(e).__name__}")
+        raise
     except Exception as e:
-        logging.error(f"Error generating image embeddings: {e}")
+        logging.error(f"Image embeddings: Unexpected error: {type(e).__name__}")
         raise
 
 

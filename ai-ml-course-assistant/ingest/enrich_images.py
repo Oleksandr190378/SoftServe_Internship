@@ -2,7 +2,7 @@
 Enrich images with context and Vision-LM descriptions.
 
 This script combines:
-1. BLIP-2 generated visual descriptions
+1. generated visual descriptions
 2. Author-provided figure captions
 3. Surrounding text context (±200 chars)
 
@@ -177,25 +177,35 @@ def enrich_single_image(
         bbox_dict['y1']
     )
 
-    context = extract_surrounding_context(page, bbox, context_chars=200)
+    # Extract context with improved sentence boundaries and cross-page fallback
+    context = extract_surrounding_context(
+        page, 
+        bbox, 
+        doc=doc, 
+        page_num=page_num - 1,  # 0-based for cross-page logic
+        max_chars=250
+    )
 
     vlm_description = ""
     if captioner:
         image_path = img_meta['filepath']
         print(f"  🎨 Generating caption for {img_meta['filename']}...")
         vlm_description = captioner.generate_caption(image_path, max_length=1024)
+    else:
+        # Preserve existing VLM description if --no-vlm is used
+        vlm_description = img_meta.get('vlm_description', '')
 
     author_caption = context.get('figure_caption', '')
     context_before = context.get('before', '')
     context_after = context.get('after', '')
 
-    enriched_parts = []
+    enriched_caption_parts = []
     
     if author_caption:
-        enriched_parts.append(f"Figure caption: {author_caption}")
+        enriched_caption_parts.append(f"Figure caption: {author_caption}")
     
     if vlm_description and vlm_description != "Error generating caption":
-        enriched_parts.append(f"Visual description: {vlm_description}")
+        enriched_caption_parts.append(f"Visual description: {vlm_description}")
     
     context_text = ""
     if context_before:
@@ -206,15 +216,15 @@ def enrich_single_image(
         context_text += context_after
     
     if context_text:
-        enriched_parts.append(f"Context: {context_text}")
+        enriched_caption_parts.append(f"Context: {context_text}")
 
-    if enriched_parts:
-        enriched_parts.append(
+    if enriched_caption_parts:
+        enriched_caption_parts.append(
             "\nNote: Use only context text that is relevant to understanding this image. "
             "Ignore surrounding text if it discusses unrelated topics."
         )
     
-    enriched_caption = "\n".join(enriched_parts) if enriched_parts else "No caption or context found"
+    enriched_caption = "\n".join(enriched_caption_parts) if enriched_caption_parts else "No caption or context found"
 
     img_meta.update({
         'enriched_caption': enriched_caption,
@@ -253,29 +263,34 @@ def enrich_all_images(
     if captioner:
         print("⏱️  Rate limit: 20 req/min (3 sec delay between requests)\n")
     
-    for idx, img_meta in enumerate(images_metadata, 1):
-        print(f"[{idx}/{total}] {img_meta['image_id']}")
-        
-        try:
-            enriched = enrich_single_image(
-                img_meta,
-                pdf_docs,
-                raw_papers_dir,
-                captioner=captioner
-            )
-            enriched_images.append(enriched)
+    try:
+        for idx, img_meta in enumerate(images_metadata, 1):
+            print(f"[{idx}/{total}] {img_meta['image_id']}")
             
-            # Rate limiting for Cohere API (20 req/min = 1 req every 3 sec)
-            if captioner and idx < total:
-                time.sleep(3.5)  # 3.5 sec to be safe
-            
-        except Exception as e:
-            logging.error(f"  Error enriching image: {e}")
-            enriched_images.append(img_meta)  # Keep original
+            try:
+                enriched = enrich_single_image(
+                    img_meta,
+                    pdf_docs,
+                    raw_papers_dir,
+                    captioner=captioner
+                )
+                enriched_images.append(enriched)
+                
+                # Rate limiting for Cohere API (20 req/min = 1 req every 3 sec)
+                if captioner and idx < total:
+                    time.sleep(3.5)  # 3.5 sec to be safe
+                
+            except Exception as e:
+                logging.error(f"  Error enriching image: {e}")
+                enriched_images.append(img_meta)  # Keep original
     
- 
-    for doc in pdf_docs.values():
-        doc.close()
+    finally:
+        # Always close PDF documents, even if exception occurs
+        for doc in pdf_docs.values():
+            try:
+                doc.close()
+            except Exception as e:
+                logging.warning(f"Failed to close PDF document: {type(e).__name__}")
     
     logging.info(f"Enriched {len(enriched_images)} images")
     return enriched_images

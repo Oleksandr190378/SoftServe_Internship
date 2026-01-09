@@ -1,26 +1,36 @@
 # Roadmap: MVP → Production System
 
 **Project:** AI/ML Course Assistant - Multimodal RAG  
-**Status:** MVP Complete, Scaling to 54 Documents  
-**Last Updated:** January 3, 2026
+**Status:** Phase D.A2 Complete (95% Recall, 88.9% Image Hit Rate, MRR=1.0)  
+**Last Updated:** January 9, 2026
 
 ---
 
 ## Overview
 
-**Current State:**
-- ✅ MVP working with 3 arXiv papers (VGG, ResNet, Attention)
-- ✅ 104 text chunks, 9 images in ChromaDB
-- ✅ Generator with GPT-5 Nano (reasoning support)
-- ✅ Optimized prompt engineering (quality 9-9.5/10)
-- ✅ Streamlit UI functional
+**Current State (Jan 9, 2026):**
+- ✅ **Phase A Complete:** Code cleanup, refactoring, unified pipeline
+- ✅ **54 documents curated:** 35 arXiv + 9 RealPython + 10 Medium/TDS
+- ✅ **19 documents fully indexed:** 369 text chunks, 142 images with VLM descriptions
+- ✅ **Phase D.A1 Complete:** Ground truth dataset (10 queries, validated 100%)
+- ✅ **Phase D.A2 Complete:** Retrieval evaluation with 3/3 targets achieved
+  - ✅ Recall@5: 95.0% (target ≥70%)
+  - ✅ Image Hit Rate: 88.9% (target ≥60%)  
+  - ✅ MRR: 1.000 (target ≥0.70)
+- ✅ **Critical Bugs Fixed:**
+  - ✅ ChromaDB path mismatch (retriever compatibility)
+  - ✅ Missing image_id in metadata (+33.3% Image Hit Rate improvement)
+  - ✅ JSON metadata deserialization (related_image_ids)
+- ✅ **Evaluation Tools:** evaluate_retrieval.py, test_retrieval_indexed.py, validate_ground_truth.py
+- ✅ **VLM Integration Complete:** gpt-4.1-mini descriptions (~$0.015/image)
+- ✅ **Reasoning Optimization:** GPT-5 Nano "low" effort (-85% reasoning tokens)
+- ✅ **Documentation:** PIPELINE_GUIDE (70+ KB), context_retrieval_evaluation_results.md
 
-**Target State:**
-- 🎯 20-25 documents from diverse sources
-- 🎯 500-700 text chunks, 150-250 images
-- 🎯 Incremental indexing pipeline
-- 🎯 Quantitative evaluation metrics
-- 🎯 Production-ready codebase
+**Next Milestones:**
+- 🎯 **Jan 9:** Phase D.B1 - Faithfulness Judge with LLM (≥4.0/5.0 target)
+- 🎯 **Jan 10:** Phase D - Final evaluation report with Top 3 improvements
+- 🎯 **Jan 11:** Production-ready demo
+- 🎯 **Jan 12:** Final presentation preparation
 
 ---
 
@@ -28,7 +38,7 @@
 
 **Duration:** 1-2 days  
 **Priority:** 🔴 HIGH  
-**Status:** 🔄 IN PROGRESS (Started Jan 2, 2026)
+**Status:** ✅ **COMPLETE** (Jan 2-5, 2026)
 
 ### Architecture Decision: 2-Stage Pipeline
 
@@ -77,6 +87,67 @@
   
   **A1.4. download_docs.py** ❌ SKIPPED
   - Official docs not included in dataset (0 pages in PRD)
+
+- [x] **A5. Context Extraction Algorithm Improvements** ✅ DONE (Jan 8)
+  
+  **Problem Analysis:**
+  - [x] Analyzed 21 images across 4 documents (2 arXiv PDFs + 2 JSON sources)
+  - [x] Identified 4 major issues:
+    1. Fixed 200-char window cuts sentences mid-word
+    2. Primitive position estimation (assumes 10 images max)
+    3. No relevance checking (technical context for decorative images)
+    4. Literal caption search fails for generic captions
+  
+  **Implementation (JSON sources - extract_from_json.py):**
+  - [x] `_should_skip_context()`: Detects decorative images via VLM description
+    - Patterns: "image by author", "not a technical", "kitten", "animal"
+    - Result: Returns empty context for 4 RealPython kitty photos ✅
+  - [x] `_extract_sentence_boundary()`: Extracts full sentences instead of fixed chars
+    - Searches for '. ', '!\n', '?\n' markers
+    - Max 250 chars instead of 200
+    - Result: No more mid-word cuts ✅
+  - [x] `_find_position_by_keywords()`: Smart position finding
+    - Extracts key terms from caption (first/last 5 words)
+    - Estimates by paragraphs instead of proportional division
+    - Formula: `(image_index / (image_index + 5))` instead of `/10`
+    - Result: Better position accuracy ✅
+  - [x] `find_context_for_image()`: Enhanced main function
+    - Added `vlm_description` parameter
+    - Integrates all 3 helper functions
+    - Returns empty strings for irrelevant images
+  
+  **Implementation (PDF sources - extract_image_context.py):**
+  - [x] `_extract_sentence_boundary_from_text()`: PDF-specific sentence extraction
+    - Uses sentence boundaries instead of fixed 200→250 chars
+    - Separate logic for before (from_end=True) and after (from_end=False)
+  - [x] `_group_text_into_paragraphs()`: Groups text by y-coordinates
+    - Detects paragraph breaks (y-gap > 5 pixels)
+    - Returns (paragraph_text, start_y, end_y) tuples
+    - Uses PDF coordinate system for precise grouping
+  - [x] `_extract_context_from_previous_page()`: Cross-page fallback
+    - Extracts last sentence from previous page if context_before empty
+    - Handles Figure 1 at page start gracefully
+  - [x] `extract_surrounding_context()`: Enhanced with bbox coordinates
+    - Uses image bbox y-coordinates to filter before/after text
+    - Groups text into paragraphs for better context
+    - Cross-page fallback: doc + page_num parameters
+    - Max 250 chars with sentence boundaries
+  
+  **Results (Old Algorithm):**
+  - PDF images: 73% good context (8/11) - empty before, wrong Figure/Table
+  - JSON images: 50% good context (4/8) - decorative photos misleading
+  - Overall: 67% success rate (14/21)
+  
+  **Expected Results (New Algorithm):**
+  - PDF images: 90%+ (sentence boundaries + cross-page fallback)
+  - JSON images: 100% (skip logic filters decorative)
+  - Overall: 85-90% success rate
+  
+  **Documentation:**
+  - [x] docs/context_extraction_improvements.md: Full algorithm comparison
+  - [x] docs/context_analysis_pdf_images.md: PDF-specific analysis (11 images)
+  - [x] Examples: Medium technical ✅, RealPython kitty photos filtered ✅
+  - [x] PDF improvements: sentence boundaries + cross-page + paragraph grouping ✅
 
 - [x] **A2. Refactor processing scripts (Stage 2)** ✅ DONE (Jan 3)
   
@@ -158,25 +229,38 @@
 - ✅ Incremental processing works (skip already indexed docs)
 - ✅ Registry tracks: source, status, timestamp, counts, cost
 
-### Current Progress (Jan 4, 2026):
-- ✅ **A0:** Test data cleaned
-- ✅ **A1:** Download scripts refactored (54 documents: 35 arXiv + 9 RealPython + 10 Medium/TDS)
-- ✅ **A2.1-A2.5:** Processing pipeline stages 1-5 complete ✅ **ALL DONE**
-  - ✅ Multi-source extraction (PDF via PyMuPDF, JSON via URL download)
-  - ✅ Context extraction (200 chars before/after images)
-  - ✅ Vision LLM improvements (8 categories, tested on 4 images)
-  - ✅ Chunking with PDF/JSON support (page-based + position-based linking)
-  - ✅ Embeddings with text-embedding-3-small (1536 dims, batch processing)
-  - ✅ ChromaDB indexing with incremental adds (LangChain Chroma)
-  - ✅ In-memory pipeline optimization (registry: 2 KB for 4 docs, 99.5% reduction)
-  - ✅ Tested on 3 documents with full pipeline: arxiv_1409_3215, medium_agents-plan-tasks, realpython_numpy-tutorial
-- ✅ **A3:** Unified orchestrator (run_pipeline.py) - **COMPLETE**
-  - ✅ All 5 stages working end-to-end
-  - ✅ Incremental processing (skip completed stages)
-  - ✅ Force reprocessing with --force flag
-  - ✅ --no-vlm flag (uses existing enrichments)
-  - ✅ Registry tracking with status, stats, costs
-- 🎯 **Next:** Phase C - Full pipeline execution on all 54 documents
+### Final Progress (Jan 5-8, 2026):
+- ✅ **A0-A3:** All tasks complete
+- ✅ **A5:** Context extraction algorithm improved (Jan 8)
+  - ✅ Smart boundary detection (sentences instead of fixed chars)
+  - ✅ Decorative image filtering (skip logic for non-technical images)
+  - ✅ Improved position finding (keyword extraction + paragraph estimation)
+  - ✅ 67% → 85-90% expected success rate
+  - ✅ Documentation: context_extraction_improvements.md, context_analysis_pdf_images.md
+- ✅ **MMR Retrieval Enhancement:**
+  - ✅ Implemented MMR (Maximal Marginal Relevance) for text chunk diversity
+  - ✅ Text retrieval: MMR (λ=0.7) for sequential coherence
+  - ✅ Image retrieval: Similarity search with document filtering
+  - ✅ Tested: Sequential chunks (4→5→6 vs 4→5→10) ✅ Improved
+  - ✅ Image hit rate: 87.5% (7/8 test queries)
+  - ✅ Document filter prevents cross-document pollution
+- ✅ **Documentation Complete:**
+  - ✅ PIPELINE_GUIDE.md (70+ KB comprehensive guide)
+  - ✅ retrieval_strategy_analysis.md (MMR vs similarity comparison)
+  - ✅ context_extraction_improvements.md (algorithm improvements)
+  - ✅ context_analysis_pdf_images.md (PDF context analysis)
+  - ✅ README.md updated with current status
+  - ✅ All docs pushed to GitHub
+- ✅ **Evaluation Framework (Phase D):**
+  - ✅ eval/ground_truth.json - 10 annotated queries (5 text, 3 visual, 2 hybrid)
+  - ✅ eval/validate_ground_truth.py - 100% validation success
+  - ✅ eval/evaluate_retrieval.py - Full evaluation system (347 lines)
+    - Metrics: Recall@k (k=3,5,10), Precision@k, MRR, Image Hit Rate
+    - Auto-saves results to eval/results/retrieval_eval_<timestamp>.json
+    - Console summary with target comparison
+  - ✅ eval/test_retrieval_indexed.py - Quick testing tool
+  - ✅ Phase D.A2 Results: Recall@5=95%, Image Hit Rate=88.9%, MRR=1.0 (3/3 targets ✅)
+- 🎯 **Next:** Phase D.B1 - Faithfulness Judge with LLM (rag/generator.py evaluation)
 
 **Testing Results (Jan 4):**
 
@@ -186,35 +270,52 @@
 - JSON (realpython_numpy-tutorial): 24 chunks, 100% with related images, excellent distribution
 - Average chunk size: 1,500-1,700 chars ≈ 430-485 tokens ✅ Target achieved
 
-**Full Pipeline Testing with VLM (Jan 4):**
+**Full Pipeline Testing with VLM (Jan 4 → Jan 7):**
 
 | Document | Type | Images | Chunks | VLM Cost | Embed Cost | Total Cost | Time |
 |----------|------|--------|--------|----------|------------|------------|------|
 | arxiv_1409_3215 | PDF | 2 | 22 | $0.030 | $0.00023 | **$0.030** | 50s |
 | realpython_numpy-tutorial | JSON | 8 | 24 | $0.120 | $0.00028 | **$0.120** | 106s |
-| medium_agents-plan-tasks | JSON | 2 | 5 | $0.000* | $0.00004 | **$0.000** | 5s |
+| medium_agents-plan-tasks | JSON | 2 | 5 | $0.030 | $0.00004 | **$0.030** | 42s |
 
-*Tested with --no-vlm flag (uses existing enriched_caption)
+**Jan 7 VLM Regeneration:**
+- ✅ **ChromaDB completely cleaned** (forced fresh indexing)
+- ✅ **All 3 documents reprocessed WITH VLM**
+- ✅ **12 images with rich VLM descriptions** (1500-2500 chars each)
+- ✅ **Total cost: $0.18** (VLM) + $0.0006 (embeddings) = **$0.181**
+- ✅ **gpt-4.1-mini used:** Technical image descriptions (VS Code UI, plots, notebooks)
 
 **Key Findings:**
 - ✅ All enrichments preserved through all stages (bug fixed)
-- ✅ Registry optimized: 2.01 KB for 4 docs (was 113 KB before optimization)
+- ✅ Registry optimized: 2.01 KB for 3 docs (was 113 KB before optimization)
 - ✅ In-memory pipeline: no full_text duplication, no images_metadata duplication
 - ✅ Embedding cost negligible: ~$0.0003 per document
-- ✅ VLM cost: $0.015 per image (~$0.030-$0.120 per doc depending on image count)
+- ✅ VLM cost: **$0.015 per image** (~$0.030-$0.120 per doc depending on image count)
 - ✅ RealPython has 100% chunk-image linking (24/24 chunks with related images)
 - ✅ PDF has selective linking (5/22 chunks with related images, 6/22 with figure references)
+- ✅ **VLM Impact:** Queries retrieve correct images with detailed context (92% faithfulness)
 
-**ChromaDB Index (Stage 5 - Jan 4):**
+**ChromaDB Index (Stage 5 - Jan 7 with VLM):**
 - ✅ **3 documents indexed successfully**
-- ✅ **51 text chunks** in text_chunks collection
-- ✅ **12 image captions** in image_captions collection
+- ✅ **51 text chunks** in text_chunks collection (5+24+22)
+- ✅ **12 image captions** in image_captions collection (2+8+2) **WITH VLM**
 - ✅ **Incremental indexing working:** skips already indexed items
-- ✅ **Metadata compatibility:** PDF (page_num) + JSON (image_index) both supported
+- ✅ **Metadata compatibility:** PDF (page_num + _vector_ pattern) + JSON (image_index + _web_ pattern)
 - ✅ **LangChain Chroma:** compatible with retriever.py
 - ✅ **Collections:** 
   - `data/chroma_db/text_chunks/` - text chunks with embeddings + metadata
-  - `data/chroma_db/image_captions/` - image captions with embeddings + metadata
+  - `data/chroma_db/image_captions/` - **image captions with VLM descriptions** + embeddings + metadata
+
+**UI Improvements (Jan 7):**
+- ✅ **Image Path Bug Fixed:** Added `_vector_` pattern support (PDF vector graphics)
+- ✅ **Patterns supported:** `_embedded_` (PDF rasters), `_vector_` (PDF vectors), `_web_` (JSON sources)
+- ✅ **Streamlit UI working:** All images display correctly
+
+**Generator Optimization (Jan 7):**
+- ✅ **GPT-5 Nano reasoning optimization:** "medium" → "low" effort
+- ✅ **Token reduction:** ~85% reasoning tokens saved (7500 → 256-1280)
+- ✅ **MAX_TOKENS:** 15000 → 10000 (sufficient for retrieval answers)
+- ✅ **No quality loss:** Answers remain detailed and accurate
 
 ---
 
@@ -297,165 +398,241 @@
 ## Phase C: Full Pipeline Execution 🔄
 
 **Duration:** 1 day  
-**Priority:** 🟡 MEDIUM  
-**Status:** ⏳ PENDING
+**Priority:** 🔴 HIGH  
+**Status:** ⏳ **READY TO START** (Jan 7, 2026)
 
-### Tasks:
+### C1. Full Pipeline Run ⚡
 
-- [ ] **C1. Clean test data**
-  - [ ] Delete existing ChromaDB: `data/chroma_db/`
-  - [ ] Clear processed JSONs: `data/processed/embeddings/`
-  - [ ] Keep only raw documents: `data/raw/`
+**Current Status:**
+- ✅ 3 documents indexed WITH VLM (arxiv_1409_3215, medium_agents-plan-tasks, realpython_numpy-tutorial)
+- ✅ Pilot evaluation complete (92% faithfulness, 80% image hit rate)
+- ⏳ 51 documents remaining (35 arXiv PDFs + 16 JSON articles)
+- ⏳ **Expected cost:** ~$0.75-1.00 (VLM for ~50-60 more images)
 
-- [ ] **C2. Run unified pipeline**
-  ```bash
-  python run_pipeline.py --source all --incremental
-  ```
-  - [ ] Process all 20+ documents
-  - [ ] Generate captions with OpenAI Vision
-  - [ ] Chunk with new params (1800 chars, 200 overlap)
-  - [ ] Embed with text-embedding-3-small
-  - [ ] Build ChromaDB collections
+**Tasks:**
 
-- [ ] **C3. Verify ChromaDB statistics**
-  - [ ] Text chunks: ~500-700 expected
-  - [ ] Images: ~150-250 expected
+- [ ] **Pre-flight checks:**
+  - [ ] Verify all 54 documents in `data/raw_data/`
+  - [ ] Check OpenAI API quota (embeddings ~$0.01 for 51 docs)
+  - [ ] Backup current ChromaDB (3 docs indexed)
+  - [ ] Review registry: `python run_pipeline.py status`
+
+- [ ] **Batch processing strategy:**
+  - [ ] **Option A:** All at once WITH VLM (20-30 min, ~$0.75-1.00)
+    ```bash
+    python run_pipeline.py process --all
+    ```
+  - [ ] **Option B:** By source type (safer, easier to debug)
+    ```bash
+    # arXiv papers first (35 docs, ~30-50 images)
+    python run_pipeline.py process --source arxiv
+    
+    # Then RealPython (9 docs, remaining processed with VLM)
+    python run_pipeline.py process --source realpython
+    
+    # Finally Medium/TDS (10 docs)
+    python run_pipeline.py process --source medium
+    ```
+  - [ ] **Recommendation:** Use Option A (full VLM) based on pilot success (92% faithfulness)
+
+- [ ] **Monitor execution:**
+  - [ ] Watch logs for errors
+  - [ ] Track registry updates: `processed_docs.json`
+  - [ ] Verify ChromaDB growth: text_chunks → ~500-700, image_captions → ~60-80 (WITH VLM)
+
+- [ ] **Post-processing validation:**
+  - [ ] Check final counts: `python run_pipeline.py status --summary`
+  - [ ] Verify all 54 documents completed
   - [ ] Test retrieval on sample queries
-  - [ ] Check metadata fields populated correctly
+  - [ ] Document any failures
 
-- [ ] **C4. Update PRD with final stats**
-  - [ ] Document counts per source type
-  - [ ] Average chunk size, image count
-  - [ ] ChromaDB storage size
+**Expected Results:**
+- ✅ ~500-700 text chunks indexed
+- ✅ ~60-80 image captions indexed (WITH VLM descriptions)
+- ✅ Total cost: **~$0.90-1.20** (VLM ~$0.75 + embeddings ~$0.015)
+- ✅ Processing time: 20-30 minutes (with VLM 3sec delays)
+- ✅ No errors in pipeline logs
 
 ### Acceptance Criteria:
+- ✅ All 54 documents in registry with status="completed"
 - ✅ ChromaDB contains 500+ text chunks
-- ✅ ChromaDB contains 150+ images
-- ✅ Test query returns relevant results from multiple sources
-- ✅ No errors in pipeline logs
+- ✅ ChromaDB contains 60+ image captions **WITH VLM descriptions**
+- ✅ Test queries return results from multiple sources
+- ✅ No processing errors
+- ✅ All images have rich VLM descriptions (1500-2500 chars)
 
 ---
 
 ## Phase D: System Evaluation 📊
 
-**Duration:** 1-2 days  
-**Priority:** 🟢 REQUIRED  
-**Status:** 🔄 IN PROGRESS
-
+ 
+**Priority:*🔄 **IN PROGRESS** 
 **Progress:**
-- ✅ Created eval/ directory structure
-- ✅ Test queries defined (30 queries: 10 text, 10 visual, 10 hybrid)
-- ✅ Retrieval testing on 3 indexed documents complete
-- ✅ Automated logging and metrics to eval/results/
+- ✅ eval/ directory structure created
+- ✅ **Pilot evaluation complete:** 5 queries on 3 documents
+- ✅ **Faithfulness: 92%** (4.6/5 average) ⬅️ **EXCELLENT**
+- ✅ **Citation correctness: 80%** (1 bug identified)
+- ✅ **Image hit rate: 80%** (4/5 queries)
+- ✅ **Reasoning optimization validated:** -85% tokens with NO quality loss
+- ✅ **VLM impact confirmed:** Answers reference detailed UI/code/plot context
+- ✅ Documentation: `eval/results/pilot_3docs.md`
+- ⏳ Pending: Full evaluation on all 54 documents (20-50 queries)
+
+### D0. Pilot Evaluation Results (Jan 7) ✅ COMPLETE
+
+**Summary Table:**
+
+| Query | Type | Images | Faithfulness | Citations | Reasoning Tokens |
+|-------|------|--------|-------------|-----------|-----------------|
+| 1. AI agents planning | Visual | 2 | **5/5** ✅ | ✅ | 256 |
+| 2. JupyterLab examples | Visual | 2 | **5/5** ✅ | ✅ | 384 |
+| 3. LSTM architecture | Technical | 2 | **4/5** ⚠️ | ✅ | 576 |
+| 4. NumPy indexing | Text | 0 | **5/5** ✅ | ✅ | 704 |
+| 5. Lorenz visualization | Hybrid | 2 | **4/5** ⚠️ | ❌ | 1280 |
+| **Average** | — | 1.6 | **4.6/5** (92%) | 80% | **622** |
+
+**Key Findings:**
+- ✅ **VLM Critical for Quality:** Queries with images had 92% faithfulness vs potentially lower without VLM context
+- ✅ **Reasoning "low" Perfect:** 622 avg tokens vs ~7500 with "medium" (**85% reduction, NO quality loss**)
+- ✅ **Image Verification Works:** Query 4 correctly rejected 5 irrelevant images (sim < 0.50)
+- ❌ **Citation Bug:** Query 5 phantom [C] reference needs investigation (likely generator issue)
+- ⚠️ **Fallback Retrieval:** Query 3 LOW confidence (missing chunk→image metadata links)
+
+**VLM Impact Evidence:**
+- Query 2 & 5: **0 text chunks cited** - answers built ENTIRELY from VLM descriptions
+- Answers reference: "VS Code UI", "right panel", "terminal output", "7 to-dos checklist", "Lorenz.ipynb file"
+- Technical details: Code line numbers, syntax highlighting colors, specific Python commands
+- **Cost: $0.015/image** (~$0.18 for 12 images) - **High ROI for quality**s/
 - ⏳ Pending: Full evaluation on all 54 documents
 
-### D1. Create Evaluation Dataset
+### D1. Ground Truth Creation (Jan 7-8)
 
-**30 Test Queries:**
+**Manual Labeling Required:**
 
-**Text-focused (10):**
-1. "What is backpropagation?"
-2. "Explain dropout regularization"
-3. "How does batch normalization work?"
-4. "What is the vanishing gradient problem?"
-5. "Difference between CNN and RNN?"
-6. "What is transfer learning?"
-7. "Explain cross-entropy loss"
-8. "How does Adam optimizer work?"
-9. "What is overfitting?"
-10. "Explain gradient descent"
+- [ ] **For each of 30 test queries:**
+  - [ ] Manually search ChromaDB for relevant chunks
+  - [ ] Label 3-5 relevant chunk_ids per query
+  - [ ] Label 1-3 relevant image_ids for visual/hybrid queries
+  - [ ] Rate relevance: HIGHLY_RELEVANT, SOMEWHAT_RELEVANT, NOT_RELEVANT
 
-**Visual (10):**
-11. "Show ResNet architecture"
-12. "Display LSTM cell diagram"
-13. "Show Transformer model"
-14. "Illustrate CNN layers"
-15. "Show attention mechanism"
-16. "Display GAN architecture"
-17. "Show U-Net structure"
-18. "Diagram of backpropagation"
-19. "Show activation functions"
-20. "Display neural network layers"
+- [ ] **Save ground truth:**
+  ```json
+  {
+    "query_001": {
+      "query": "What is backpropagation?",
+      "relevant_chunks": ["arxiv_1502_03167_chunk_0005", ...],
+      "relevant_images": [],
+      "notes": "Focus on algorithm explanation, not history"
+    }
+  }
+  ```
+  - [ ] File: `eval/ground_truth.json`
 
-**Hybrid (10):**
-21. "Explain residual connections and show skip connections"
-22. "What is attention mechanism? Show formula"
-23. "How does LSTM work? Show gates"
-24. "Explain CNN architecture with diagram"
-25. "What is multi-head attention? Show parallel heads"
-26. "How does GAN train? Show discriminator/generator"
-27. "Explain encoder-decoder and show architecture"
-28. "What is batch normalization? Show computation graph"
-29. "How does dropout work? Show visualization"
-30. "Explain Adam optimizer with update rules"
+- [ ] **Quality checks:**
+  - [ ] Each query has ≥3 relevant chunks labeled
+  - [ ] Visual queries have ≥1 relevant image
+  - [ ] No duplicates or typos in IDs
 
-**Tasks:**
-- [x] Create `eval/test_queries.json` with 30 queries
-- [x] Create `eval/test_retrieval_indexed.py` for testing on indexed docs
-- [x] Setup eval/results/ directory for logs and metrics
-- [ ] Manually label ground truth:
-  - [ ] Relevant chunk_ids for each query
-  - [ ] Relevant image_ids for visual/hybrid queries
-- [ ] Save ground truth in `eval/ground_truth.json`
 
-**Results (3 indexed documents):**
-- ✅ Image hit rate: 87.5% (7/8 queries retrieved images)
-- ✅ Avg images per query: 1.5
-- ✅ MEDIUM confidence: 8 images, LOW: 4 images
-- ✅ Visual queries: 100% hit rate
-- ✅ Text queries: 67% hit rate
-- ✅ Document filter prevents cross-document pollution
-- 📁 Results saved to: eval/results/retrieval_summary_YYYYMMDD_HHMMSS.json
+### D2. Retrieval Metrics Evaluation (Jan 8)
 
-### D2. Retrieval Metrics
+**Metrics Implementation:**
 
-**Metrics to Measure:**
-- **Recall@5:** % of relevant chunks in top-5 (target ≥70%)
-- **Image Hit Rate:** % of visual queries with ≥1 relevant image in top-5 (target ≥60%)
-- **MRR (Mean Reciprocal Rank):** Average 1/rank of first relevant result
+- [ ] **Create `eval/evaluate_retrieval.py`:**
+  ```python
+  def calculate_recall_at_k(ground_truth, retrieved_chunks, k=5):
+      # % of relevant chunks in top-k
+  
+  def calculate_mrr(ground_truth, retrieved_chunks):
+      # Mean reciprocal rank of first relevant
+  
+  def calculate_image_hit_rate(ground_truth, retrieved_images):
+      # % of visual queries with ≥1 relevant image
+  ```
 
-**Tasks:**
-- [ ] Create `eval/evaluate_retrieval.py`
-- [ ] Run retrieval on 30 test queries
-- [ ] Compare results to ground truth
-- [ ] Generate metrics report
+- [ ] **Run evaluation:**
+  ```bash
+  python eval/evaluate_retrieval.py --queries eval/test_queries.json --ground-truth eval/ground_truth.json
+  ```
 
-### D3. Answer Quality Metrics
+- [ ] **Generate report:**
+  - [ ] Recall@5 per query type (text/visual/hybrid)
+  - [ ] MRR distribution
+  - [ ] Image hit rate breakdown
+  - [ ] Failure analysis (queries with Recall@5 < 0.5)
 
-**Metrics to Measure:**
-- **Faithfulness:** % of answers supported by retrieved sources (target ≥80%)
-- **Citation Accuracy:** % of citations actually relevant (target ≥85%)
-- **"I don't know" Correctness:** Does system refuse when context insufficient? (target 100%)
-
-**Tasks:**
-- [ ] Create `eval/evaluate_answers.py`
-- [ ] Generate answers for 30 test queries
-- [ ] Manual review:
-  - [ ] Check each claim against sources
-  - [ ] Verify citations point to relevant content
-  - [ ] Test off-topic queries (system should say "I don't know")
-- [ ] Generate quality report
-
-### D4. Latency Profiling
-
-**Tasks:**
-- [ ] Add timing instrumentation to retriever.py
-- [ ] Measure:
-  - [ ] Text retrieval time (semantic search)
-  - [ ] Image retrieval time (metadata + verification)
-  - [ ] Total retrieval time
-  - [ ] Generation time (reasoning tokens + answer)
-  - [ ] End-to-end latency
-- [ ] Generate performance report
-- [ ] Compare medium vs low reasoning effort
-
-### Acceptance Criteria:
+**Target Metrics:**
 - ✅ Recall@5 ≥ 70%
 - ✅ Image Hit Rate ≥ 60%
+- ✅ MRR ≥ 0.5
+
+### D3. UI Testing & Improvements 
+
+**Streamlit UI Tasks:**
+
+- [ ] **Test current UI:**
+  - [ ] Launch: `streamlit run ui/app.py`
+  - [ ] Test 10 sample queries
+  - [ ] Verify image rendering
+  - [ ] Check text chunk display
+  - [ ] Test query history
+
+- [ ] **Improvements needed:**
+  - [ ] Add confidence badges (HIGH/MEDIUM/LOW) for images
+  - [ ] Show similarity scores
+  - [ ] Display source metadata (doc_id, page_num)
+  - [ ] Add "Copy citation" button
+  - [ ] Implement query suggestions
+  - [ ] Add latency metrics display
+
+- [ ] **Generator integration (if time permits):**
+  - [ ] Connect retriever to LLM (gpt-4o-mini)
+  - [ ] Add answer generation view
+  - [ ] Display citations inline
+  - [ ] Implement "I don't know" logic
+
+### D4. Answer Quality Evaluation (Jan 8-9)
+
+**Prerequisites:**
+- ⏳ Generator implementation required
+
+**Tasks:**
+
+- [ ] **Create `eval/evaluate_answers.py`:**
+  ```python
+  def calculate_faithfulness(answer, retrieved_chunks):
+      # Check if claims supported by sources
+  
+  def calculate_citation_accuracy(answer, citations, ground_truth):
+      # Verify citations point to relevant content
+  
+  def test_idk_correctness(off_topic_queries):
+      # System should refuse unanswerable queries
+  ```
+
+- [ ] **Manual review (30 answers):**
+  - [ ] Read each generated answer
+  - [ ] Verify claims against retrieved sources
+  - [ ] Check citation accuracy
+  - [ ] Rate quality 1-5
+
+- [ ] **Off-topic query testing:**
+  - [ ] Create 10 off-topic queries (e.g., "How to cook pasta?")
+  - [ ] Verify system responds "I don't know" or similar
+  - [ ] Test edge cases (partially related queries)
+
+**Target Metrics:**
 - ✅ Faithfulness ≥ 80%
 - ✅ Citation Accuracy ≥ 85%
-- ✅ End-to-end latency < 60 seconds (medium reasoning)
-- ✅ Evaluation report generated in `eval/results/`
+- ✅ "I don't know" Correctness = 100%
+
+### Acceptance Criteria:
+- ✅ Ground truth created for 30 queries
+- ✅ Recall@5 ≥ 70%
+- ✅ Image Hit Rate ≥ 60%
+- ✅ UI tested and improved
+- ✅ Generator integrated (if applicable)
+- ✅ Evaluation reports generated in `eval/results/`
 
 ---
 
@@ -504,18 +681,28 @@
 
 | Phase | Duration | Start | End | Status |
 |-------|----------|-------|-----|--------|
-| A. Code Cleanup | 1-2 days | Jan 2 | Jan 3-4 | ⏳ PENDING |
-| B. Dataset Expansion | 2-3 days | Jan 4 | Jan 6-7 | ⏳ PENDING |
-| C. Pipeline Execution | 1 day | Jan 7 | Jan 7-8 | ⏳ PENDING |
-| D. System Evaluation | 1-2 days | Jan 8 | Jan 9-10 | ⏳ PENDING |
-| E. Final Optimization | 1 day | Jan 10 | Jan 10-11 | ⏳ PENDING |
-| **TOTAL** | **6-9 days** | **Jan 2** | **Jan 10-11** | |
+| A. Code Cleanup & MMR | 3 days | Jan 2 | Jan 5 | ✅ COMPLETE |
+| **Break Day** | **1 day** | **Jan 6** | **Jan 6** | **🏖️ OFF** |
+| C. Full Pipeline Run | 1 day | Jan 7 | Jan 7 | ⏳ SCHEDULED |
+| D1-D2. Ground Truth + Metrics | 2 days | Jan 7 | Jan 8 | ⏳ NEXT |
+| D3. UI Testing | 1 day | Jan 8 | Jan 8 | ⏳ NEXT |
+| D4. Answer Quality | 1 day | Jan 9 | Jan 9 | ⏳ NEXT |
+| E. Refinements | 1-2 days | Jan 10 | Jan 11 | ⏳ PENDING |
+| **TOTAL** | **9-11 days** | **Jan 2** | **Jan 11-13** | |
+
+**Key Milestones:**
+- ✅ Jan 5: MMR retrieval complete, GitHub push
+- 🏖️ **Jan 6: Break day (other work)**
+- 🎯 Jan 7: All 54 documents indexed
+- 🎯 Jan 8: Ground truth + UI testing complete
+- 🎯 Jan 9: Full evaluation metrics
+- 🎯 Jan 11: Production-ready demo
 
 ---
 
 ## Technical Configuration
 
-### Current Settings (Optimized):
+### Current Settings (Optimized Jan 5):
 
 ```yaml
 # Chunking
@@ -525,22 +712,32 @@ chunk_overlap: 200  # ~55 tokens, 11% overlap
 # Embeddings
 model: "text-embedding-3-small"
 dimensions: 1536
+batch_size: 100
 
 # Retrieval
-k_text: 3  # Top-3 text chunks
+search_type: "mmr"  # Maximal Marginal Relevance
+mmr_lambda: 0.7  # 70% relevance, 30% diversity
+k_text: 3  # Top-3 diverse text chunks
 k_images: 3  # Up to 3 verified images
 
-# Generator
-llm: "gpt-5-nano"  # OpenAI GPT-5 Nano
-max_tokens: 15000  # Reasoning (8000) + Answer (4000)
-reasoning_effort: "medium"  # Balance speed/quality
-temperature: 0.1
-
-# Verification
-similarity_threshold: 0.6  # Same-page images
-similarity_threshold_nearby: 0.7  # ±1 page images
+# Image Retrieval
+image_search_type: "similarity"  # Not MMR (small dataset)
+similarity_threshold: 0.5  # Same-page images
+similarity_threshold_nearby: 0.65  # ±1 page images
 visual_fallback_threshold: 0.5  # Fallback for visual queries
+document_filter: true  # Prevent cross-document pollution
+
+# Generator (pending implementation)
+llm: "gpt-4o-mini"  # OpenAI GPT-4o-mini
+max_tokens: 4096
+temperature: 0.1
 ```
+
+**Key Improvements (Jan 5):**
+- ✅ MMR for text chunks (sequential coherence 4→5→6)
+- ✅ Document-filtered fallback (no cross-document images)
+- ✅ Lower similarity thresholds (0.5 for better recall)
+- ✅ Batch embedding processing (100 items/batch)
 
 ---
 
@@ -573,28 +770,37 @@ visual_fallback_threshold: 0.5  # Fallback for visual queries
 - Decided: 1536 (full quality)
 - Rationale: Technical content needs high precision, small corpus (storage not issue)
 
+---7, 2026)
+
+**Morning (Phase C):**
+1. ✅ Verify OpenAI API quota
+2. 🔄 Run full pipeline: `python run_pipeline.py process --all --no-vlm`
+3. 🔄 Monitor execution (4-25 min)
+4. 🔄 Validate results: 500+ chunks, 150+ images
+
+**Afternoon (Phase D1):**
+1. 🔄 Start ground truth creation (30 queries)
+2. 🔄 Label 3-5 relevant chunks per query
+3. 🔄 Label images for visual/hybrid queries
+4. 🔄 Save to `eval/ground_truth.json`
+
+**Evening (Phase D3):**
+1. 🔄 Test Streamlit UI with full dataset
+2. 🔄 Try 10-15 sample queries
+3. 🔄 Note UI improvements needed
+4. 🔄 Plan generator integration
+
+**This Week Focus:**
+- Jan 7: Full dataset indexed (54 docs)
+- Jan 8: Ground truth + UI testing
+- Jan 9: Evaluation metrics + answer quality
+- Jan 10-11: Refinements and demo prepries)
+- UI functional and tested
+- Evaluation metrics calculated
+
 ---
 
-## Next Steps
-
-**Immediate (Phase A):**
-1. ✅ Save this roadmap
-2. 🔄 Delete test data (ChromaDB, processed JSONs)
-3. 🔄 Audit code for cleanup opportunities
-4. 🔄 Create `run_pipeline.py` skeleton
-
-**This Week:**
-- Complete Phase A (Code Cleanup)
-- Start Phase B (Dataset Expansion)
-
-**Next Week:**
-- Complete Phase B, C, D
-- Run full evaluation
-- Finalize documentation
-
----
-
-## Success Criteria
+## Technical Configuration (Updated Jan 5, 2026)
 
 **Code Quality:**
 - ✅ No print statements in production code

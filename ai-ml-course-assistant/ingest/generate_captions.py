@@ -10,10 +10,12 @@ The enriched captions are then embedded as text for unified retrieval.
 """
 
 import base64
+import logging
 import os
 from pathlib import Path
 from typing import Dict, Optional
 from openai import OpenAI
+import openai
 from PIL import Image
 import io
 
@@ -48,13 +50,14 @@ class ImageCaptioner:
             api_key = os.getenv("OPENAI_API_KEY")
         
         if not api_key:
+            # This should be caught by validate_environment() at startup
             raise ValueError(
-                "OpenAI API key not found. Set OPENAI_API_KEY environment variable "
-                "or pass api_key parameter."
+                "OpenAI API key not found. "
+                "This should have been validated at pipeline startup."
             )
         
         self.client = OpenAI(api_key=api_key)
-        print(f"✅ OpenAI Vision API initialized: {model_name}")
+        logging.info(f"✅ OpenAI Vision API initialized: {model_name}")
 
         self.default_prompt = """Describe this technical image in detail for AI/ML developers and data scientists.
 
@@ -178,8 +181,22 @@ class ImageCaptioner:
             caption = response.output_text
             return caption.strip()
             
+        except openai.AuthenticationError:
+            logging.error("OpenAI authentication failed. Check API key validity.")
+            return "Error: Authentication failed"
+        except openai.RateLimitError:
+            logging.error("OpenAI rate limit exceeded. Retry later or reduce request frequency.")
+            return "Error: Rate limit exceeded"
+        except openai.APIConnectionError:
+            logging.error("OpenAI API connection error. Check network connectivity.")
+            return "Error: Connection failed"
+        except openai.APIError as e:
+            # Log error type without exposing sensitive details
+            logging.error(f"OpenAI API error: {type(e).__name__}")
+            return "Error: API request failed"
         except Exception as e:
-            print(f"  ⚠️  OpenAI API error: {e}")
+            # Catch-all for unexpected errors (sanitized)
+            logging.error(f"Unexpected error generating caption: {type(e).__name__}")
             return "Error generating caption"
 
 

@@ -46,10 +46,7 @@ from ingest.extract_from_json import extract_json_document
 from ingest.enrich_images import generate_captions_for_doc
 from index.chunk_documents import chunk_document_with_image_tracking
 from index.embedding_utils import embed_document
-
-# ChromaDB imports for Stage 5
-from langchain_chroma import Chroma
-from langchain_openai import OpenAIEmbeddings
+from index.build_index import index_documents_to_chromadb
 
 # Load environment variables
 load_dotenv()
@@ -61,15 +58,30 @@ logging.basicConfig(
 )
 
 PROJECT_ROOT = Path(__file__).parent
+
+
+def validate_environment():
+    """
+    Validate required environment variables before pipeline execution.
+    
+    Raises:
+        EnvironmentError: If required variables are missing with actionable guidance
+    """
+    if not os.getenv("OPENAI_API_KEY"):
+        raise EnvironmentError(
+            "\n❌ OPENAI_API_KEY not found.\n\n"
+            "Required for embeddings and VLM captions.\n"
+            "Please create a .env file in the project root with:\n\n"
+            "  OPENAI_API_KEY=your_key_here\n\n"
+            "Or set the environment variable:\n"
+            "  Windows: set OPENAI_API_KEY=your_key_here\n"
+            "  Linux/Mac: export OPENAI_API_KEY=your_key_here\n"
+        )
+    logging.info("✅ Environment validation passed")
+
 REGISTRY_PATH = PROJECT_ROOT / "data" / "processed_docs.json"
 RAW_PAPERS_DIR = PROJECT_ROOT / "data" / "raw" / "papers"
 IMAGES_OUTPUT_DIR = PROJECT_ROOT / "data" / "processed" / "images"
-
-# ChromaDB configuration
-CHROMA_DIR = PROJECT_ROOT / "data" / "chroma_db"
-EMBEDDING_MODEL = "text-embedding-3-small"
-EMBEDDING_DIMS = 1536
-
 
 
 def load_registry(registry_path: Path = REGISTRY_PATH) -> Dict:
@@ -145,201 +157,6 @@ def is_document_completed(doc_id: str, registry_path: Path = REGISTRY_PATH) -> b
         return False
     return registry[doc_id].get("status") == "completed"
 
-
-
-def index_to_chromadb(
-    doc_id: str,
-    chunks_with_embeddings: List[Dict],
-    images_with_embeddings: List[Dict]
-) -> Dict:
-    """
-    Index chunks and images to ChromaDB collections.
-    
-    Creates/updates two collections:
-    - text_chunks: Text chunks with embeddings and metadata
-    - image_captions: Image captions with embeddings and metadata
-    
-    Supports incremental indexing - skips already indexed items.
-    
-    Args:
-        doc_id: Document identifier
-        chunks_with_embeddings: List of chunks with embeddings
-        images_with_embeddings: List of images with embeddings
-        
-    Returns:
-        Dict with indexing statistics
-    """
-    logging.info(f"📊 Indexing {doc_id} to ChromaDB")
-    
-    # Ensure ChromaDB directory exists
-    CHROMA_DIR.mkdir(parents=True, exist_ok=True)
-    
-    # Initialize embeddings
-    embeddings = OpenAIEmbeddings(
-        model=EMBEDDING_MODEL,
-        dimensions=EMBEDDING_DIMS
-    )
-    
-    # Statistics
-    stats = {
-        "text_chunks_added": 0,
-        "text_chunks_skipped": 0,
-        "images_added": 0,
-        "images_skipped": 0
-    }
-    
-    # ========================================================================
-    # Index text chunks
-    # ========================================================================
-    logging.info(f"Indexing {len(chunks_with_embeddings)} text chunks...")
-    
-    # Load or create text_chunks collection
-    try:
-        text_store = Chroma(
-            collection_name="text_chunks",
-            embedding_function=embeddings,
-            persist_directory=str(CHROMA_DIR / "text_chunks")
-        )
-        
-        # Check existing IDs to avoid duplicates
-        try:
-            existing_collection = text_store._collection
-            existing_ids = set(existing_collection.get()["ids"])
-        except:
-            existing_ids = set()
-            
-    except Exception as e:
-        logging.info(f"Creating new text_chunks collection")
-        text_store = Chroma(
-            collection_name="text_chunks",
-            embedding_function=embeddings,
-            persist_directory=str(CHROMA_DIR / "text_chunks")
-        )
-        existing_ids = set()
-    
-    # Prepare new chunks (skip existing)
-    new_chunks_texts = []
-    new_chunks_metadatas = []
-    new_chunks_ids = []
-    new_chunks_embeddings = []
-    
-    for chunk in chunks_with_embeddings:
-        chunk_id = chunk['chunk_id']
-        
-        if chunk_id in existing_ids:
-            stats["text_chunks_skipped"] += 1
-            continue
-        
-        new_chunks_texts.append(chunk['text'])
-        new_chunks_ids.append(chunk_id)
-        new_chunks_embeddings.append(chunk['embedding'])
-        
-        # Metadata (convert lists to comma-separated strings for ChromaDB)
-        metadata = {
-            'chunk_id': chunk['chunk_id'],
-            'doc_id': chunk['doc_id'],
-            'chunk_index': chunk['chunk_index'],
-            'page_num': chunk['page_num'],
-            'char_count': chunk['char_count'],
-            'word_count': chunk['word_count'],
-            'has_figure_references': chunk['has_figure_references'],
-            'image_references': ','.join(chunk['image_references']),
-            'related_image_ids': ','.join(chunk['related_image_ids']),
-            'nearby_image_ids': ','.join(chunk['nearby_image_ids']),
-            'extraction_method': chunk.get('extraction_method', 'unknown')
-        }
-        new_chunks_metadatas.append(metadata)
-    
-    # Add new chunks to collection
-    if new_chunks_texts:
-        text_store.add_texts(
-            texts=new_chunks_texts,
-            metadatas=new_chunks_metadatas,
-            ids=new_chunks_ids,
-            embeddings=new_chunks_embeddings
-        )
-        stats["text_chunks_added"] = len(new_chunks_texts)
-        logging.info(f"✅ Added {len(new_chunks_texts)} new text chunks")
-    else:
-        logging.info(f"⏭️  All {len(chunks_with_embeddings)} text chunks already indexed")
-    
-    # ========================================================================
-    # Index image captions
-    # ========================================================================
-    logging.info(f"Indexing {len(images_with_embeddings)} image captions...")
-    
-    # Load or create image_captions collection
-    try:
-        image_store = Chroma(
-            collection_name="image_captions",
-            embedding_function=embeddings,
-            persist_directory=str(CHROMA_DIR / "image_captions")
-        )
-        
-        # Check existing IDs
-        try:
-            existing_collection = image_store._collection
-            existing_ids = set(existing_collection.get()["ids"])
-        except:
-            existing_ids = set()
-            
-    except Exception as e:
-        logging.info(f"Creating new image_captions collection")
-        image_store = Chroma(
-            collection_name="image_captions",
-            embedding_function=embeddings,
-            persist_directory=str(CHROMA_DIR / "image_captions")
-        )
-        existing_ids = set()
-    
-    # Prepare new images (skip existing)
-    new_images_texts = []
-    new_images_metadatas = []
-    new_images_ids = []
-    new_images_embeddings = []
-    
-    for img in images_with_embeddings:
-        image_id = img['image_id']
-        
-        if image_id in existing_ids:
-            stats["images_skipped"] += 1
-            continue
-        
-        new_images_texts.append(img['caption_for_embedding'])
-        new_images_ids.append(image_id)
-        new_images_embeddings.append(img['embedding'])
-        
-        # Metadata
-        metadata = {
-            'image_id': img['image_id'],
-            'doc_id': img['doc_id'],
-            'filename': img['filename'],
-            'page_num': img.get('page_num', img.get('image_index', 0)),  # PDF uses page_num, JSON uses image_index
-            'region_index': img.get('region_index', 0),
-            'width': img.get('width', 0),
-            'height': img.get('height', 0),
-            'format': img.get('format', ''),
-            'author_caption': img.get('author_caption', ''),
-            'extraction_method': img.get('extraction_method', '')
-        }
-        new_images_metadatas.append(metadata)
-    
-    # Add new images to collection
-    if new_images_texts:
-        image_store.add_texts(
-            texts=new_images_texts,
-            metadatas=new_images_metadatas,
-            ids=new_images_ids,
-            embeddings=new_images_embeddings
-        )
-        stats["images_added"] = len(new_images_texts)
-        logging.info(f"✅ Added {len(new_images_texts)} new image captions")
-    else:
-        logging.info(f"⏭️  All {len(images_with_embeddings)} images already indexed")
-    
-    logging.info(f"✅ Indexing complete: {stats['text_chunks_added']} chunks + {stats['images_added']} images added")
-    
-    return stats
 
 
 def detect_document_type(doc_id: str) -> str:
@@ -590,8 +407,8 @@ def process_document(
                     f"Use --force to regenerate embeddings."
                 )
             
-            # Index to ChromaDB
-            index_stats = index_to_chromadb(
+            # Index to ChromaDB (with locking and native API)
+            index_stats = index_documents_to_chromadb(
                 doc_id,
                 result["chunks_with_embeddings"],
                 result["images_with_embeddings"]
@@ -756,6 +573,13 @@ def show_status():
 # ============================================================================
 
 def main():
+    # Validate environment before any processing
+    try:
+        validate_environment()
+    except EnvironmentError as e:
+        logging.error(str(e))
+        return 1
+    
     parser = argparse.ArgumentParser(
         description="Unified document processing pipeline",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -782,7 +606,7 @@ Examples:
     
     # Process command
     process_parser = subparsers.add_parser("process", help="Process documents")
-    process_parser.add_argument("--doc-id", type=str, help="Process specific document")
+    process_parser.add_argument("--doc-id", type=str, nargs='+', help="Process specific document(s)")
     process_parser.add_argument("--all", action="store_true", help="Process all documents")
     process_parser.add_argument("--new-only", action="store_true", help="Process only new documents")
     process_parser.add_argument("--force", action="store_true", help="Force reprocess")
@@ -795,8 +619,9 @@ Examples:
     
     if args.command == "process":
         if args.doc_id:
-            # Process single document
-            process_document(args.doc_id, force=args.force, use_vlm=not args.no_vlm)
+            # Process single or multiple documents
+            for doc_id in args.doc_id:
+                process_document(doc_id, force=args.force, use_vlm=not args.no_vlm)
         elif args.all or args.new_only:
             # Process multiple documents
             process_all_documents(force=args.force, new_only=args.new_only, use_vlm=not args.no_vlm)

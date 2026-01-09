@@ -106,13 +106,27 @@ def load_images_metadata():
 
 
 def get_image_path(image_id: str) -> Path:
-    """Get image file path from image_id."""
-    # Extract paper_id from image_id (e.g., arxiv_1706_03762_embedded_001 -> arxiv_1706_03762)
-    parts = image_id.split('_')
-    if len(parts) >= 4:
-        paper_id = '_'.join(parts[:3])  # arxiv_1706_03762
+    """Get image file path from image_id.
+    
+    Handles multiple image_id formats:
+    - PDF: arxiv_1706_03762_embedded_001 -> paper_id: arxiv_1706_03762
+    - PDF: arxiv_1409_3215_vector_006_01 -> paper_id: arxiv_1409_3215
+    - JSON: realpython_numpy-tutorial_web_004 -> paper_id: realpython_numpy-tutorial
+    - JSON: medium_agents-plan-tasks_web_001 -> paper_id: medium_agents-plan-tasks
+    """
+    # Extract paper_id by removing suffix patterns
+    # Pattern 1: _embedded_XXX (PDFs - raster images)
+    if '_embedded_' in image_id:
+        paper_id = image_id.rsplit('_embedded_', 1)[0]
+    # Pattern 2: _vector_XXX (PDFs - vector images)
+    elif '_vector_' in image_id:
+        paper_id = image_id.rsplit('_vector_', 1)[0]
+    # Pattern 3: _web_XXX (JSON sources)
+    elif '_web_' in image_id:
+        paper_id = image_id.rsplit('_web_', 1)[0]
+    # Fallback: use full image_id
     else:
-        paper_id = image_id  # Fallback
+        paper_id = image_id
     
     # Try PNG in paper subfolder
     png_path = IMAGES_DIR / paper_id / f"{image_id}.png"

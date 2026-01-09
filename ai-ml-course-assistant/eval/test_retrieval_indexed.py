@@ -63,6 +63,59 @@ class RetrievalTester:
             k_text=3
         )
         
+        # ===== ASSERTIONS: Validate retrieval quality =====
+        # P5 Fix: Add automated validation instead of silent logging
+        
+        # Assertion 1: Text chunks should always be retrieved
+        assert len(text_chunks) > 0, f"FAIL: No text chunks retrieved for query: '{query}'"
+        self.log(f"✅ Assertion passed: {len(text_chunks)} text chunks retrieved")
+        
+        # Assertion 2: Visual queries should retrieve images
+        if query_type == "visual" or retriever.is_visual_query(query):
+            assert len(verified_images) > 0, f"FAIL: No images for visual query: '{query}'"
+            self.log(f"✅ Assertion passed: {len(verified_images)} images for visual query")
+        
+        # Assertion 3: Check metadata integrity for text chunks
+        for i, chunk in enumerate(text_chunks, 1):
+            assert 'chunk_id' in chunk.metadata, f"FAIL: Chunk {i} missing 'chunk_id'"
+            assert 'doc_id' in chunk.metadata, f"FAIL: Chunk {i} missing 'doc_id'"
+            # page_num is optional (None for JSON docs, number for PDF docs)
+            if 'page_num' in chunk.metadata:
+                assert chunk.metadata['page_num'] is None or isinstance(chunk.metadata['page_num'], int), \
+                    f"FAIL: Chunk {i} page_num must be None or int"
+            assert len(chunk.page_content) > 0, f"FAIL: Chunk {i} has empty content"
+        self.log(f"✅ Assertion passed: All chunks have required metadata")
+        
+        # Assertion 4: Check metadata integrity for images
+        for i, img_data in enumerate(verified_images, 1):
+            img = img_data['image']
+            assert 'image_id' in img.metadata, f"FAIL: Image {i} missing 'image_id'"
+            assert 'doc_id' in img.metadata, f"FAIL: Image {i} missing 'doc_id'"
+            assert 'confidence' in img_data, f"FAIL: Image {i} missing 'confidence' score"
+            assert img_data['confidence'] in ['HIGH', 'MEDIUM', 'LOW'], \
+                f"FAIL: Image {i} invalid confidence: {img_data['confidence']}"
+            assert 'similarity' in img_data, f"FAIL: Image {i} missing 'similarity' score"
+            assert 0 <= img_data['similarity'] <= 1, \
+                f"FAIL: Image {i} similarity out of range: {img_data['similarity']}"
+        if verified_images:
+            self.log(f"✅ Assertion passed: All images have valid metadata and scores")
+        
+        # Assertion 5: Confidence scores should match similarity thresholds
+        for img_data in verified_images:
+            if img_data['confidence'] == 'HIGH':
+                assert img_data['similarity'] >= 0.9, \
+                    f"FAIL: HIGH confidence but low similarity: {img_data['similarity']}"
+            elif img_data['confidence'] == 'MEDIUM':
+                # MEDIUM should have reasonable similarity
+                assert img_data['similarity'] >= 0.5, \
+                    f"FAIL: MEDIUM confidence but similarity < threshold: {img_data['similarity']}"
+        if verified_images:
+            self.log(f"✅ Assertion passed: Confidence scores consistent with similarity")
+        
+        self.log("\n" + "-" * 80)
+        self.log("📊 RETRIEVAL RESULTS:")
+        self.log("-" * 80)
+        
         # Extract results
         chunk_results = []
         for i, doc in enumerate(text_chunks, 1):

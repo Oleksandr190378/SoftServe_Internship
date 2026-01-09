@@ -2,18 +2,31 @@
 Build ChromaDB vector store for text chunks and image captions.
 
 Creates two collections:
-1. text_chunks - 104 text chunks with embeddings
-2. image_captions - 9 image captions with embeddings
+1. text_chunks - Text chunks with embeddings and metadata
+2. image_captions - Image captions with embeddings and metadata
 
 Both collections use OpenAI text-embedding-3-small (1536 dims) embeddings.
+
+Features:
+- Cross-platform file locking to prevent race conditions
+- Incremental indexing (skip duplicates)
+- Native ChromaDB API (no langchain wrapper)
+- Single Responsibility Principle compliance
 """
 
 import json
 import logging
+import sys
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Dict, Set, Tuple
 import chromadb
 from chromadb.config import Settings
+
+# File locking imports (cross-platform)
+if sys.platform == 'win32':
+    import msvcrt
+else:
+    import fcntl
 
 # Configure logging
 logging.basicConfig(
@@ -24,234 +37,339 @@ logging.basicConfig(
 
 # Paths
 BASE_DIR = Path(__file__).parent.parent
-EMBEDDINGS_DIR = BASE_DIR / "data" / "processed" / "embeddings"
-CHUNKS_FILE = EMBEDDINGS_DIR / "chunks_with_embeddings.json"
-IMAGES_FILE = EMBEDDINGS_DIR / "images_with_embeddings.json"
-CHROMA_DIR = BASE_DIR / "data" / "vector_store"
+CHROMA_DIR = BASE_DIR / "data" / "chroma_db"
+CHROMA_LOCK_FILE = CHROMA_DIR / ".chroma.lock"
 
 
-def load_data() -> tuple:
-    """Load chunks and images with embeddings."""
-    logging.info(f"Loading data from {EMBEDDINGS_DIR}")
+class ChromaDBLock:
+    """Cross-platform file-based lock for ChromaDB operations."""
     
-    with open(CHUNKS_FILE, 'r', encoding='utf-8') as f:
-        chunks = json.load(f)
+    def __init__(self, lock_file: Path):
+        self.lock_file = lock_file
+        self.lock_file.parent.mkdir(parents=True, exist_ok=True)
+        self.file_handle = None
     
-    with open(IMAGES_FILE, 'r', encoding='utf-8') as f:
-        images = json.load(f)
-    
-    logging.info(f"Loaded {len(chunks)} chunks and {len(images)} images")
-    return chunks, images
-
-
-def create_chroma_client() -> chromadb.PersistentClient:
-    """Initialize ChromaDB persistent client."""
-    CHROMA_DIR.mkdir(parents=True, exist_ok=True)
-    
-    logging.info(f"Initializing ChromaDB at {CHROMA_DIR}")
-    
-    client = chromadb.PersistentClient(
-        path=str(CHROMA_DIR),
-        settings=Settings(
-            anonymized_telemetry=False,
-            allow_reset=True
-        )
-    )
-    
-    return client
-
-
-def build_text_chunks_collection(client: chromadb.PersistentClient, chunks: List[Dict]):
-    """
-    Build text_chunks collection with embeddings and metadata.
-    
-    Metadata includes:
-    - chunk_id, doc_id, chunk_index, page_num
-    - has_figure_references, image_references
-    - related_image_ids (same page), nearby_image_ids (±1 page)
-    """
-    logging.info("Building text_chunks collection")
-    
-    # Delete if exists
-    try:
-        client.delete_collection("text_chunks")
-        logging.info("Deleted existing text_chunks collection")
-    except:
-        pass
-    
-    # Create collection
-    collection = client.create_collection(
-        name="text_chunks",
-        metadata={
-            "description": "Text chunks from academic papers",
-            "embedding_model": "text-embedding-3-small",
-            "embedding_dims": 1536
-        }
-    )
-    
-    # Prepare data
-    ids = []
-    embeddings = []
-    documents = []
-    metadatas = []
-    
-    for chunk in chunks:
-        ids.append(chunk['chunk_id'])
-        embeddings.append(chunk['embedding'])
-        documents.append(chunk['text'])
+    def __enter__(self):
+        """Acquire exclusive lock on ChromaDB directory."""
+        self.file_handle = open(self.lock_file, 'w')
         
-        # Metadata (exclude large fields like 'text' and 'embedding')
+        if sys.platform == 'win32':
+            # Windows: Use msvcrt
+            try:
+                msvcrt.locking(self.file_handle.fileno(), msvcrt.LK_NBLCK, 1)
+            except IOError:
+                self.file_handle.close()
+                raise RuntimeError(
+                    f"ChromaDB is locked by another process. "
+                    f"Wait for other process to finish or remove {self.lock_file}"
+                )
+        else:
+            # Unix/Linux/Mac: Use fcntl
+            try:
+                fcntl.flock(self.file_handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except IOError:
+                self.file_handle.close()
+                raise RuntimeError(
+                    f"ChromaDB is locked by another process. "
+                    f"Wait for other process to finish or remove {self.lock_file}"
+                )
+        
+        logging.info(f"Acquired ChromaDB lock: {self.lock_file}")
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Release lock."""
+        if self.file_handle:
+            if sys.platform == 'win32':
+                try:
+                    msvcrt.locking(self.file_handle.fileno(), msvcrt.LK_UNLCK, 1)
+                except:
+                    pass
+            else:
+                try:
+                    fcntl.flock(self.file_handle.fileno(), fcntl.LOCK_UN)
+                except:
+                    pass
+            
+            self.file_handle.close()
+            
+            # Remove lock file
+            try:
+                self.lock_file.unlink()
+            except:
+                pass
+            
+            logging.info("Released ChromaDB lock")
+
+
+def _get_existing_ids(collection) -> Set[str]:
+    """
+    Get set of existing document IDs from ChromaDB collection.
+    
+    Single responsibility: Query existing IDs for duplicate detection.
+    
+    Args:
+        collection: ChromaDB collection object
+        
+    Returns:
+        Set of existing document IDs
+    """
+    try:
+        result = collection.get()
+        return set(result['ids']) if result and 'ids' in result else set()
+    except Exception as e:
+        logging.warning(f"Could not fetch existing IDs: {e}")
+        return set()
+
+
+def _prepare_text_chunks_for_indexing(
+    chunks_with_embeddings: List[Dict],
+    existing_ids: Set[str]
+) -> Tuple[List[str], List[str], List[List[float]], List[Dict], int]:
+    """
+    Prepare text chunks for ChromaDB indexing (skip duplicates).
+    
+    Single responsibility: Filter and format text chunks for indexing.
+    
+    Args:
+        chunks_with_embeddings: List of chunks with embeddings
+        existing_ids: Set of already indexed IDs
+        
+    Returns:
+        Tuple of (ids, documents, embeddings, metadatas, skipped_count)
+    """
+    ids = []
+    documents = []
+    embeddings = []
+    metadatas = []
+    skipped_count = 0
+    
+    for chunk in chunks_with_embeddings:
+        chunk_id = chunk['chunk_id']
+        
+        # Skip if already indexed
+        if chunk_id in existing_ids:
+            skipped_count += 1
+            continue
+        
+        ids.append(chunk_id)
+        documents.append(chunk['text'])
+        embeddings.append(chunk['embedding'])
+        
+        # Metadata (convert lists to JSON strings)
         metadata = {
             'doc_id': chunk['doc_id'],
             'chunk_index': chunk['chunk_index'],
-            'page_num': chunk['page_num'],
             'char_count': chunk['char_count'],
             'word_count': chunk['word_count'],
             'has_figure_references': chunk['has_figure_references'],
-            # Store lists as JSON strings (ChromaDB metadata limitation)
             'image_references': json.dumps(chunk['image_references']),
             'related_image_ids': json.dumps(chunk['related_image_ids']),
-            'nearby_image_ids': json.dumps(chunk['nearby_image_ids'])
+            'nearby_image_ids': json.dumps(chunk['nearby_image_ids']),
+            'extraction_method': chunk.get('extraction_method', 'unknown')
         }
+        
+        # Add page_num only if not None (ChromaDB may not store None)
+        if chunk.get('page_num') is not None:
+            metadata['page_num'] = chunk['page_num']
+        
         metadatas.append(metadata)
     
-    # Add to collection
-    logging.info(f"Adding {len(ids)} chunks to collection")
-    collection.add(
-        ids=ids,
-        embeddings=embeddings,
-        documents=documents,
-        metadatas=metadatas
-    )
-    
-    logging.info(f"✅ text_chunks collection created with {collection.count()} documents")
-    return collection
+    return ids, documents, embeddings, metadatas, skipped_count
 
 
-def build_image_captions_collection(client: chromadb.PersistentClient, images: List[Dict]):
+def _prepare_images_for_indexing(
+    images_with_embeddings: List[Dict],
+    existing_ids: Set[str]
+) -> Tuple[List[str], List[str], List[List[float]], List[Dict], int]:
     """
-    Build image_captions collection with embeddings and metadata.
+    Prepare image captions for ChromaDB indexing (skip duplicates).
     
-    Metadata includes:
-    - image_id, doc_id, page_num, filename
-    - enriched_caption (full text used for embedding)
-    - author_caption, vlm_description
+    Single responsibility: Filter and format image captions for indexing.
+    
+    Args:
+        images_with_embeddings: List of images with embeddings
+        existing_ids: Set of already indexed IDs
+        
+    Returns:
+        Tuple of (ids, documents, embeddings, metadatas, skipped_count)
     """
-    logging.info("Building image_captions collection")
-    
-    # Delete if exists
-    try:
-        client.delete_collection("image_captions")
-        logging.info("Deleted existing image_captions collection")
-    except:
-        pass
-    
-    # Create collection
-    collection = client.create_collection(
-        name="image_captions",
-        metadata={
-            "description": "Enriched image captions from academic papers",
-            "embedding_model": "text-embedding-3-small",
-            "embedding_dims": 1536
-        }
-    )
-    
-    # Prepare data
     ids = []
-    embeddings = []
     documents = []
+    embeddings = []
     metadatas = []
+    skipped_count = 0
     
-    for img in images:
-        ids.append(img['image_id'])
+    for img in images_with_embeddings:
+        image_id = img['image_id']
+        
+        # Skip if already indexed
+        if image_id in existing_ids:
+            skipped_count += 1
+            continue
+        
+        ids.append(image_id)
+        documents.append(img['caption_for_embedding'])
         embeddings.append(img['embedding'])
         
-        # Document is the caption used for embedding
-        documents.append(img['caption_for_embedding'])
-        
-        # Metadata
+        # Metadata (CRITICAL: include image_id for retrieval by ID)
         metadata = {
+            'image_id': image_id,  # REQUIRED for fetch_images_by_ids()
             'doc_id': img['doc_id'],
-            'page_num': img['page_num'],
             'filename': img['filename'],
-            'width': img['width'],
-            'height': img['height'],
-            'format': img['format'],
-            # Store captions separately for reference
-            'enriched_caption': img['enriched_caption'][:1000],  # Truncate if too long
-            'author_caption': img.get('author_caption', '')[:500] if img.get('author_caption') else ''
+            'width': img.get('width', 0),
+            'height': img.get('height', 0),
+            'format': img.get('format', ''),
+            'enriched_caption': img['enriched_caption'][:1000],  # Truncate
+            'author_caption': img.get('author_caption', '')[:500] if img.get('author_caption') else '',
+            'extraction_method': img.get('extraction_method', '')
         }
+        
+        # Add page_num (handle both PDF and JSON documents)
+        page_num = img.get('page_num', img.get('image_index', 0))
+        if page_num is not None:
+            metadata['page_num'] = page_num
+        
         metadatas.append(metadata)
     
-    # Add to collection
-    logging.info(f"Adding {len(ids)} images to collection")
-    collection.add(
-        ids=ids,
-        embeddings=embeddings,
-        documents=documents,
-        metadatas=metadatas
+    return ids, documents, embeddings, metadatas, skipped_count
+
+
+def index_documents_to_chromadb(
+    doc_id: str,
+    chunks_with_embeddings: List[Dict],
+    images_with_embeddings: List[Dict]
+) -> Dict:
+    """
+    Index text chunks and image captions to ChromaDB with locking.
+    
+    Features:
+    - File-based locking prevents concurrent write race conditions
+    - Incremental indexing (skips duplicates)
+    - Native ChromaDB API (no langchain wrapper)
+    - Single Responsibility: orchestrate indexing with locking
+    
+    Args:
+        doc_id: Document identifier (for logging)
+        chunks_with_embeddings: List of text chunks with embeddings
+        images_with_embeddings: List of image captions with embeddings
+        
+    Returns:
+        Dict with indexing statistics:
+        - text_chunks_added: Number of new chunks indexed
+        - text_chunks_skipped: Number of duplicate chunks skipped
+        - images_added: Number of new images indexed
+        - images_skipped: Number of duplicate images skipped
+    """
+    logging.info(f"📊 Indexing {doc_id} to ChromaDB")
+    
+    # Ensure ChromaDB directory exists
+    CHROMA_DIR.mkdir(parents=True, exist_ok=True)
+    
+    # Statistics
+    stats = {
+        "text_chunks_added": 0,
+        "text_chunks_skipped": 0,
+        "images_added": 0,
+        "images_skipped": 0
+    }
+    
+    # Use file-based locking to prevent concurrent writes
+    with ChromaDBLock(CHROMA_LOCK_FILE):
+        # Initialize ChromaDB client
+        client = chromadb.PersistentClient(
+            path=str(CHROMA_DIR),
+            settings=Settings(
+                anonymized_telemetry=False,
+                allow_reset=False
+            )
+        )
+        
+        # ====================================================================
+        # Index text chunks
+        # ====================================================================
+        logging.info(f"Indexing {len(chunks_with_embeddings)} text chunks...")
+        
+        # Get or create text_chunks collection
+        try:
+            text_collection = client.get_collection("text_chunks")
+        except:
+            text_collection = client.create_collection(
+                name="text_chunks",
+                metadata={
+                    "description": "Text chunks from documents",
+                    "embedding_model": "text-embedding-3-small",
+                    "embedding_dims": 1536
+                }
+            )
+            logging.info("Created new text_chunks collection")
+        
+        # Get existing IDs to avoid duplicates
+        existing_text_ids = _get_existing_ids(text_collection)
+        
+        # Prepare new chunks
+        chunk_ids, chunk_docs, chunk_embeds, chunk_metas, text_skipped = \
+            _prepare_text_chunks_for_indexing(chunks_with_embeddings, existing_text_ids)
+        
+        # Add new chunks to collection
+        if chunk_ids:
+            text_collection.add(
+                ids=chunk_ids,
+                documents=chunk_docs,
+                embeddings=chunk_embeds,
+                metadatas=chunk_metas
+            )
+            stats["text_chunks_added"] = len(chunk_ids)
+            logging.info(f"✅ Added {len(chunk_ids)} new text chunks")
+        
+        stats["text_chunks_skipped"] = text_skipped
+        if text_skipped > 0:
+            logging.info(f"⏭️  Skipped {text_skipped} existing text chunks")
+        
+        # ====================================================================
+        # Index image captions
+        # ====================================================================
+        logging.info(f"Indexing {len(images_with_embeddings)} image captions...")
+        
+        # Get or create image_captions collection
+        try:
+            image_collection = client.get_collection("image_captions")
+        except:
+            image_collection = client.create_collection(
+                name="image_captions",
+                metadata={
+                    "description": "Enriched image captions from documents",
+                    "embedding_model": "text-embedding-3-small",
+                    "embedding_dims": 1536
+                }
+            )
+            logging.info("Created new image_captions collection")
+        
+        # Get existing IDs to avoid duplicates
+        existing_image_ids = _get_existing_ids(image_collection)
+        
+        # Prepare new images
+        image_ids, image_docs, image_embeds, image_metas, images_skipped = \
+            _prepare_images_for_indexing(images_with_embeddings, existing_image_ids)
+        
+        # Add new images to collection
+        if image_ids:
+            image_collection.add(
+                ids=image_ids,
+                documents=image_docs,
+                embeddings=image_embeds,
+                metadatas=image_metas
+            )
+            stats["images_added"] = len(image_ids)
+            logging.info(f"✅ Added {len(image_ids)} new image captions")
+        
+        stats["images_skipped"] = images_skipped
+        if images_skipped > 0:
+            logging.info(f"⏭️  Skipped {images_skipped} existing images")
+    
+    logging.info(
+        f"✅ Indexing complete: "
+        f"{stats['text_chunks_added']} chunks + {stats['images_added']} images added"
     )
     
-    logging.info(f"✅ image_captions collection created with {collection.count()} documents")
-    return collection
-
-
-def verify_collections(client: chromadb.PersistentClient):
-    """Verify collections and show statistics."""
-    logging.info("\nVerifying collections...")
-    
-    collections = client.list_collections()
-    logging.info(f"Total collections: {len(collections)}")
-    
-    for coll in collections:
-        logging.info(f"\nCollection: {coll.name}")
-        logging.info(f"  Count: {coll.count()} documents")
-        logging.info(f"  Metadata: {coll.metadata}")
-        
-        # Sample query
-        result = coll.peek(limit=1)
-        if result['ids']:
-            logging.info(f"  Sample ID: {result['ids'][0]}")
-            logging.info(f"  Embedding dims: {len(result['embeddings'][0])}")
-
-
-def main():
-    """Main execution pipeline."""
-    print("=" * 70)
-    print("🗄️  ChromaDB Index Building")
-    print("=" * 70)
-    print()
-    
-    # Load data
-    chunks, images = load_data()
-    
-    # Create ChromaDB client
-    client = create_chroma_client()
-    
-    # Build collections
-    text_collection = build_text_chunks_collection(client, chunks)
-    image_collection = build_image_captions_collection(client, images)
-    
-    # Verify
-    verify_collections(client)
-    
-    # Final statistics
-    print()
-    print("=" * 70)
-    print("📊 Index Statistics")
-    print("=" * 70)
-    print(f"Vector store location: {CHROMA_DIR}")
-    print(f"Text chunks: {text_collection.count()}")
-    print(f"Image captions: {image_collection.count()}")
-    print(f"Total documents: {text_collection.count() + image_collection.count()}")
-    print(f"Embedding model: text-embedding-3-small (1536 dims)")
-    print()
-    print("=" * 70)
-    print("✅ ChromaDB index built successfully!")
-    print("=" * 70)
-    print()
-    print("Next step: Build retriever (rag/retriever.py)")
-
-
-if __name__ == "__main__":
-    main()
+    return stats

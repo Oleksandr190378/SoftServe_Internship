@@ -28,6 +28,8 @@ except ImportError:
     logging.error("BeautifulSoup not installed. Run: pip install beautifulsoup4")
     exit(1)
 
+from ingest.utils import save_articles_metadata
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -306,32 +308,6 @@ def download_curated_articles(output_dir: Path, num_articles: int = 7) -> List[D
     return articles_metadata
 
 
-def save_summary_metadata(articles_metadata: List[Dict], output_dir: Path):
-    """Save summary metadata for all articles."""
-    metadata_path = output_dir / "articles_metadata.json"
-    
-    summary = {
-        'total_articles': len(articles_metadata),
-        'downloaded_at': datetime.now().isoformat(),
-        'articles': [
-            {
-                'doc_id': article['doc_id'],
-                'title': article['title'],
-                'url': article['url'],
-                'topic': next((a['topic'] for a in CURATED_ARTICLES if a['slug'] == article['slug']), 'Unknown'),
-                'stats': article['stats']
-            }
-            for article in articles_metadata
-        ]
-    }
-    
-    with open(metadata_path, 'w', encoding='utf-8') as f:
-        json.dump(summary, f, indent=2, ensure_ascii=False)
-    
-    logging.info(f"Saved summary metadata to: {metadata_path}")
-    return metadata_path
-
-
 def download_articles(
     article_urls: Optional[List[str]] = None,
     output_dir: Path = None,
@@ -339,8 +315,7 @@ def download_articles(
 ) -> List[str]:
     """
     Download Medium/TDS articles and return list of doc_ids.
-    
-    This is the main API function for use by run_pipeline.py.
+
     
     Args:
         article_urls: Specific article URLs to download (optional)
@@ -360,7 +335,7 @@ def download_articles(
     
     # Save summary metadata
     if articles_metadata:
-        save_summary_metadata(articles_metadata, output_dir)
+        save_articles_metadata(articles_metadata, output_dir)
     
     # Return list of doc_ids for tracking
     doc_ids = [article['doc_id'] for article in articles_metadata]

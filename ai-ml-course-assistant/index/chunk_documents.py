@@ -185,7 +185,7 @@ def chunk_document_with_image_tracking(
                         nearby_image_ids.append(img['image_id'])
         
         # Create metadata with explicit linking fields
-        chunk_meta = {
+        chunk_metadata = {
             "chunk_id": f"{doc_id}_chunk_{i:04d}",
             "doc_id": doc_id,
             "text": chunk_text,
@@ -200,7 +200,7 @@ def chunk_document_with_image_tracking(
             "extraction_method": "pdf" if is_pdf else "json"
         }
         
-        chunks_with_metadata.append(chunk_meta)
+        chunks_with_metadata.append(chunk_metadata)
     
     return chunks_with_metadata
 

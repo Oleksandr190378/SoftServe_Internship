@@ -1,7 +1,7 @@
 """
 Smart image extraction - extracts only diagrams/figures, not full pages.
 
-This script intelligently finds and extracts:
+This script  finds and extracts:
 1. Embedded raster images (PNG, JPG)
 2. Vector graphics regions (diagrams, charts)
 3. Figures and tables (detected by captions)
@@ -329,6 +329,24 @@ def extract_images_smart(
 ) -> List[Dict]:
     """
     Smart extraction: embedded images + vector graphics regions only.
+    
+    Error Handling Strategy: Logs errors and returns partial results.
+    - PDF corruption or parse errors → Logs error, returns empty list
+    - Individual page errors → Logs warning, continues with other pages
+    - Caller should check for empty list but not expect exceptions
+    
+    For critical errors that should halt processing, caller should validate
+    PDF existence/readability before calling this function.
+    
+    Args:
+        pdf_path: Path to PDF file
+        output_dir: Directory for extracted images
+        doc_id: Document identifier
+        min_size: Minimum image dimension (pixels)
+        dpi: DPI for vector graphics rasterization
+    
+    Returns:
+        List of image metadata dicts (may be empty if extraction fails)
     """
     all_images_metadata = []
     
@@ -389,8 +407,7 @@ def extract_text_from_pdf(pdf_path: Path) -> Tuple[str, List[Dict]]:
         return "", []
 
 
-# Text is no longer saved to disk - used in-memory by pipeline
-# extract_text_from_pdf() returns text directly for chunking
+
 
 
 def process_all_papers(
@@ -583,73 +600,3 @@ def save_metadata(
     return images_json_path, docs_json_path
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        description="Smart image extraction (diagrams/figures only)"
-    )
-    parser.add_argument(
-        "--input", type=str, default=str(DEFAULT_INPUT_DIR)
-    )
-    parser.add_argument(
-        "--output", type=str, default=str(DEFAULT_OUTPUT_DIR)
-    )
-    parser.add_argument(
-        "--min-size", type=int, default=MIN_IMAGE_SIZE
-    )
-    parser.add_argument(
-        "--dpi", type=int, default=DPI
-    )
-    
-    args = parser.parse_args()
-    
-    input_dir = Path(args.input)
-    output_dir = Path(args.output)
-    
-    print("=" * 70)
-    print("🧠 Smart Image Extractor - AI/ML Course Assistant")
-    print("=" * 70)
-    print(f"Input: {input_dir}")
-    print(f"Output: {output_dir}")
-    print(f"Min size: {args.min_size}px")
-    print(f"DPI: {args.dpi}")
-    print("=" * 70)
-    print()
-    
-    images_metadata, documents_metadata = process_all_papers(
-        input_dir, output_dir, args.min_size, args.dpi
-    )
-    
-    if images_metadata or documents_metadata:
-        images_json_path, docs_json_path = save_metadata(
-            images_metadata, documents_metadata, output_dir
-        )
-        
-        print("=" * 70)
-        print(f"✅ Processing complete!")
-        print("=" * 70)
-        print()
-        print("📊 Summary:")
-        print(f"  - Documents: {len(documents_metadata)}")
-        print(f"  - Images: {len(images_metadata)}")
-        
-        embedded = sum(1 for img in images_metadata 
-                      if img.get("extraction_method") == "embedded_raster")
-        vector = sum(1 for img in images_metadata 
-                    if img.get("extraction_method") == "vector_graphics")
-        
-        print(f"    • Embedded raster: {embedded}")
-        print(f"    • Vector graphics regions: {vector}")
-        print(f"  - Images saved to: {output_dir}")
-        print()
-        
-        if images_metadata:
-            total_size_mb = sum(img["size_bytes"] for img in images_metadata) / (1024 * 1024)
-            print(f"  - Total size: {total_size_mb:.2f} MB")
-        
-        print()
-        print("🔜 Next: python ingest/test_extraction.py")
-        print("=" * 70)
-
-
-if __name__ == "__main__":
-    main()

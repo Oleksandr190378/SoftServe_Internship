@@ -26,6 +26,8 @@ except ImportError:
     logging.error("arxiv library not installed. Run: pip install arxiv")
     exit(1)
 
+from ingest.utils import save_papers_metadata
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -233,17 +235,6 @@ def search_and_download_papers(
     return papers_metadata
 
 
-def save_metadata(papers_metadata: List[Dict], output_dir: Path):
-    """Save papers metadata to JSON file."""
-    metadata_path = output_dir / "papers_metadata.json"
-    
-    with open(metadata_path, "w", encoding="utf-8") as f:
-        json.dump(papers_metadata, f, indent=2, ensure_ascii=False)
-    
-    logging.info(f"Saved metadata to: {metadata_path}")
-    return metadata_path
-
-
 def download_papers(
     paper_ids: Optional[List[str]] = None,
     mode: str = "curated",
@@ -255,7 +246,6 @@ def download_papers(
     """
     Download arXiv papers and return list of doc_ids.
     
-    This is the main API function for use by run_pipeline.py.
     
     Args:
         paper_ids: Specific paper IDs to download (for curated mode)
@@ -293,7 +283,7 @@ def download_papers(
         )
 
     if papers_metadata:
-        save_metadata(papers_metadata, output_dir)
+        save_papers_metadata(papers_metadata, output_dir)
 
     doc_ids = [paper["doc_id"] for paper in papers_metadata]
     logging.info(f"Downloaded {len(doc_ids)} papers: {doc_ids}")
