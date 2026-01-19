@@ -24,11 +24,11 @@ import argparse
 
 try:
     from bs4 import BeautifulSoup
-except ImportError:
+except ImportError as e:
     logging.error("BeautifulSoup not installed. Run: pip install beautifulsoup4")
-    exit(1)
+    raise ImportError("BeautifulSoup4 is required. Install it with: pip install beautifulsoup4") from e
 
-from ingest.utils import save_articles_metadata
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -39,7 +39,19 @@ logging.basicConfig(
 DEFAULT_OUTPUT_DIR = Path(__file__).parent.parent / "data" / "raw" / "realpython"
 DEFAULT_NUM_ARTICLES = 10
 
+# Download behavior constants
+DOWNLOAD_DELAY_SECONDS = 2  # Politeness with RealPython rate limiting
+REQUEST_TIMEOUT_SECONDS = 30  # Request timeout
+TITLE_TRUNCATE_LENGTH = 60  # Max length for title display in logs
+
 CURATED_ARTICLES = [
+    {
+    "url": "https://realpython.com/logistic-regression-python/",
+    "slug": "logistic-regression-python",
+    "title": "Logistic Regression in Python Using Scikit-Learn",
+    "topic": "Machine Learning Fundamentals",
+    "description": "A fundamental classification algorithm that serves as the basis for understanding how individual neurons in a network function."
+  },
     {
         "url": "https://realpython.com/python-ai-neural-network/",
         "slug": "python-ai-neural-network",
@@ -113,6 +125,25 @@ CURATED_ARTICLES = [
 ]
 
 
+
+
+def _extract_article_body(soup) -> Optional[Dict]:
+    """
+    Extract article body element from parsed HTML.
+    
+    Args:
+        soup: BeautifulSoup parsed HTML object
+        
+    Returns:
+        Article body element or None if not found
+    """
+    article_body = soup.find(class_="article-body")
+    if not article_body:
+        logging.warning("Could not find article-body element")
+        return None
+    return article_body
+
+
 def download_article(url: str, slug: str, output_dir: Path) -> Optional[Dict]:
     """
     Download and parse a single RealPython article.
@@ -129,12 +160,12 @@ def download_article(url: str, slug: str, output_dir: Path) -> Optional[Dict]:
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
-        response = requests.get(url, headers=headers, timeout=30)
+        response = requests.get(url, headers=headers, timeout=REQUEST_TIMEOUT_SECONDS)
         response.raise_for_status()
 
         soup = BeautifulSoup(response.content, 'html.parser')
 
-        article_body = soup.find(class_="article-body")
+        article_body = _extract_article_body(soup)
         if not article_body:
             logging.error(f"  Could not find article-body in {url}")
             return None
@@ -200,15 +231,22 @@ def download_article(url: str, slug: str, output_dir: Path) -> Optional[Dict]:
         article_dir.mkdir(parents=True, exist_ok=True)
         
         json_path = article_dir / f"{slug}.json"
-        with open(json_path, 'w', encoding='utf-8') as f:
-            json.dump(metadata, f, indent=2, ensure_ascii=False)
+        try:
+            with open(json_path, 'w', encoding='utf-8') as f:
+                json.dump(metadata, f, indent=2, ensure_ascii=False)
+        except (IOError, OSError) as e:
+            logging.error(f"  Failed to save metadata to {json_path}: {type(e).__name__}: {e}")
+            return None
         
         logging.info(f"  Saved: {json_path}")
         
         return metadata
         
+    except requests.RequestException as e:
+        logging.error(f"  Network error downloading {url}: {type(e).__name__}: {e}")
+        return None
     except Exception as e:
-        logging.error(f"  Error downloading {url}: {e}")
+        logging.error(f"  Error downloading {url}: {type(e).__name__}: {e}")
         return None
 
 
@@ -222,7 +260,13 @@ def download_curated_articles(output_dir: Path, num_articles: int = 10) -> List[
         
     Returns:
         List of article metadata dictionaries
+        
+    Raises:
+        ValueError: If num_articles <= 0
     """
+    if num_articles <= 0:
+        raise ValueError(f"num_articles must be positive, got {num_articles}")
+    
     output_dir.mkdir(parents=True, exist_ok=True)
     articles_metadata = []
     
@@ -238,16 +282,20 @@ def download_curated_articles(output_dir: Path, num_articles: int = 10) -> List[
         json_path = article_dir / f"{slug}.json"
         
         if json_path.exists():
-            logging.info(f"  [{idx}/{len(articles)}] Already exists: {title[:60]}...")
-            with open(json_path, 'r', encoding='utf-8') as f:
-                metadata = json.load(f)
-                articles_metadata.append(metadata)
+            logging.info(f"  [{idx}/{len(articles)}] Already exists: {title[:TITLE_TRUNCATE_LENGTH]}...")
+            try:
+                with open(json_path, 'r', encoding='utf-8') as f:
+                    metadata = json.load(f)
+                    articles_metadata.append(metadata)
+            except (IOError, OSError, json.JSONDecodeError) as e:
+                logging.error(f"  Failed to load metadata from {json_path}: {type(e).__name__}: {e}")
+                continue
         else:
-            logging.info(f"  [{idx}/{len(articles)}] Downloading: {title[:60]}...")
+            logging.info(f"  [{idx}/{len(articles)}] Downloading: {title[:TITLE_TRUNCATE_LENGTH]}...")
             metadata = download_article(url, slug, output_dir)
             if metadata:
                 articles_metadata.append(metadata)
-            time.sleep(2)  
+            time.sleep(DOWNLOAD_DELAY_SECONDS)  
     
     return articles_metadata
 
@@ -269,7 +317,13 @@ def download_articles(
         
     Returns:
         List of downloaded doc_ids (e.g., ['realpython_neural_network', 'realpython_gans'])
+        
+    Raises:
+        ValueError: If max_articles <= 0
     """
+    if max_articles <= 0:
+        raise ValueError(f"max_articles must be positive, got {max_articles}")
+    
     if output_dir is None:
         output_dir = DEFAULT_OUTPUT_DIR
     
@@ -278,10 +332,11 @@ def download_articles(
     articles_metadata = download_curated_articles(output_dir, max_articles)
 
     if articles_metadata:
-        save_articles_metadata(articles_metadata, output_dir)
-
-    doc_ids = [article['doc_id'] for article in articles_metadata]
-    logging.info(f"Downloaded {len(doc_ids)} articles: {doc_ids}")
+        doc_ids = [article['doc_id'] for article in articles_metadata]
+        logging.info(f"Successfully downloaded {len(doc_ids)} articles: {doc_ids}")
+    else:
+        doc_ids = []
+        logging.warning("No articles were downloaded")
     
     return doc_ids
 

@@ -36,14 +36,15 @@ def extract_figure_references(text: str) -> List[str]:
         List of figure/table references (e.g., ["Figure 1", "Table 2"])
     """
     pattern = r'\b(Figure|Fig\.|Table)\s+\d+\b'
-    matches = re.findall(pattern, text, re.IGNORECASE)
+    # Use finditer to get full matches, not just capture groups
+    matches = re.finditer(pattern, text, re.IGNORECASE)
 
     normalized = []
     for match in matches:
-        if 'fig' in match.lower():
-            normalized.append(re.sub(r'Fig\.', 'Figure', match, flags=re.IGNORECASE))
-        else:
-            normalized.append(match)
+        full_match = match.group(0)  # Get full match: "Figure 1", "Table 2"
+        # Normalize "Fig." to "Figure"
+        normalized_match = re.sub(r'Fig\.', 'Figure', full_match, flags=re.IGNORECASE)
+        normalized.append(normalized_match)
 
     return list(set(normalized))
 
@@ -118,6 +119,14 @@ def chunk_document_with_image_tracking(
 
     is_pdf = total_pages > 0
     is_json = any(img.get('extraction_method') == 'web_download' for img in images_metadata)
+    
+    # STAGE 1: Validate chunk parameters
+    if chunk_size <= 0:
+        raise ValueError(f"chunk_size must be > 0, got {chunk_size}")
+    if chunk_overlap < 0:
+        raise ValueError(f"chunk_overlap must be >= 0, got {chunk_overlap}")
+    if chunk_overlap >= chunk_size:
+        raise ValueError(f"chunk_overlap ({chunk_overlap}) must be < chunk_size ({chunk_size})")
     
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=chunk_size,

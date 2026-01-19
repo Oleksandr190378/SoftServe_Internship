@@ -24,11 +24,10 @@ import argparse
 
 try:
     from bs4 import BeautifulSoup
-except ImportError:
+except ImportError as e:
     logging.error("BeautifulSoup not installed. Run: pip install beautifulsoup4")
-    exit(1)
+    raise ImportError("BeautifulSoup4 is required. Install it with: pip install beautifulsoup4") from e
 
-from ingest.utils import save_articles_metadata
 
 logging.basicConfig(
     level=logging.INFO,
@@ -38,6 +37,13 @@ logging.basicConfig(
 
 DEFAULT_OUTPUT_DIR = Path(__file__).parent.parent / "data" / "raw" / "medium"
 DEFAULT_NUM_ARTICLES = 10
+
+# Download behavior constants
+DOWNLOAD_DELAY_SECONDS = 3  # Extra politeness with Medium rate limiting
+REQUEST_TIMEOUT_SECONDS = 30  # Request timeout
+TITLE_TRUNCATE_LENGTH = 60  # Max length for title display in logs
+MIN_CODE_LENGTH = 10  # Minimum length to consider as valid code snippet
+SPAM_TEXT_THRESHOLD = 100  # Max length of spam text (keywords section)
 
 CURATED_ARTICLES = [
     {
@@ -113,6 +119,19 @@ CURATED_ARTICLES = [
 ]
 
 
+def _get_article_title_from_dict(article: Dict) -> str:
+    """
+    Extract title from article dictionary.
+    
+    Args:
+        article: Article dictionary with 'title' key
+        
+    Returns:
+        Title string or empty string if not found
+    """
+    return article.get('title', '')
+
+
 def download_article(url: str, slug: str, output_dir: Path) -> Optional[Dict]:
     """
     Download and parse a single Medium/TDS article.
@@ -130,7 +149,7 @@ def download_article(url: str, slug: str, output_dir: Path) -> Optional[Dict]:
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
-        response = requests.get(url, headers=headers, timeout=30)
+        response = requests.get(url, headers=headers, timeout=REQUEST_TIMEOUT_SECONDS)
         response.raise_for_status()
         
         # Parse HTML
@@ -177,7 +196,7 @@ def download_article(url: str, slug: str, output_dir: Path) -> Optional[Dict]:
         for p in paragraphs:
             text = p.get_text(strip=True).lower()
             # Skip spam sections
-            if any(keyword in text for keyword in spam_keywords) and len(text) < 100:
+            if any(keyword in text for keyword in spam_keywords) and len(text) < SPAM_TEXT_THRESHOLD:
                 continue
             if p.get_text(strip=True):  # Non-empty
                 clean_paragraphs.append(p.get_text(strip=True))
@@ -189,7 +208,7 @@ def download_article(url: str, slug: str, output_dir: Path) -> Optional[Dict]:
         code_content = []
         for idx, code in enumerate(code_blocks, 1):
             code_text = code.get_text(strip=True)
-            if code_text and len(code_text) > 10:  # Skip very short snippets
+            if code_text and len(code_text) > MIN_CODE_LENGTH:  # Skip very short snippets
                 code_content.append({
                     'index': idx,
                     'code': code_text
@@ -254,15 +273,22 @@ def download_article(url: str, slug: str, output_dir: Path) -> Optional[Dict]:
         article_dir.mkdir(parents=True, exist_ok=True)
         
         json_path = article_dir / f"{slug}.json"
-        with open(json_path, 'w', encoding='utf-8') as f:
-            json.dump(metadata, f, indent=2, ensure_ascii=False)
+        try:
+            with open(json_path, 'w', encoding='utf-8') as f:
+                json.dump(metadata, f, indent=2, ensure_ascii=False)
+        except (IOError, OSError) as e:
+            logging.error(f"  Failed to save metadata to {json_path}: {type(e).__name__}: {e}")
+            return None
         
         logging.info(f"  Saved: {json_path}")
         
         return metadata
         
+    except requests.RequestException as e:
+        logging.error(f"  Network error downloading {url}: {type(e).__name__}: {e}")
+        return None
     except Exception as e:
-        logging.error(f"  Error downloading {url}: {e}")
+        logging.error(f"  Error downloading {url}: {type(e).__name__}: {e}")
         return None
 
 
@@ -276,7 +302,13 @@ def download_curated_articles(output_dir: Path, num_articles: int = 7) -> List[D
         
     Returns:
         List of article metadata dictionaries
+        
+    Raises:
+        ValueError: If num_articles <= 0
     """
+    if num_articles <= 0:
+        raise ValueError(f"num_articles must be positive, got {num_articles}")
+    
     output_dir.mkdir(parents=True, exist_ok=True)
     articles_metadata = []
     
@@ -294,16 +326,20 @@ def download_curated_articles(output_dir: Path, num_articles: int = 7) -> List[D
         json_path = article_dir / f"{slug}.json"
         
         if json_path.exists():
-            logging.info(f"  [{idx}/{len(articles)}] Already exists: {title[:60]}...")
-            with open(json_path, 'r', encoding='utf-8') as f:
-                metadata = json.load(f)
-                articles_metadata.append(metadata)
+            logging.info(f"  [{idx}/{len(articles)}] Already exists: {title[:TITLE_TRUNCATE_LENGTH]}...")
+            try:
+                with open(json_path, 'r', encoding='utf-8') as f:
+                    metadata = json.load(f)
+                    articles_metadata.append(metadata)
+            except (IOError, OSError, json.JSONDecodeError) as e:
+                logging.error(f"  Failed to load metadata from {json_path}: {type(e).__name__}: {e}")
+                continue
         else:
-            logging.info(f"  [{idx}/{len(articles)}] Downloading: {title[:60]}...")
+            logging.info(f"  [{idx}/{len(articles)}] Downloading: {title[:TITLE_TRUNCATE_LENGTH]}...")
             metadata = download_article(url, slug, output_dir)
             if metadata:
                 articles_metadata.append(metadata)
-            time.sleep(3)  # Be extra polite with Medium rate limiting
+            time.sleep(DOWNLOAD_DELAY_SECONDS)  # Be extra polite with Medium rate limiting
     
     return articles_metadata
 
@@ -324,7 +360,13 @@ def download_articles(
         
     Returns:
         List of downloaded doc_ids (e.g., ['medium_learning_rates', 'medium_cnn_guide'])
+        
+    Raises:
+        ValueError: If max_articles <= 0
     """
+    if max_articles <= 0:
+        raise ValueError(f"max_articles must be positive, got {max_articles}")
+    
     if output_dir is None:
         output_dir = DEFAULT_OUTPUT_DIR
     
@@ -332,14 +374,13 @@ def download_articles(
     
     # Download curated articles
     articles_metadata = download_curated_articles(output_dir, max_articles)
-    
-    # Save summary metadata
+
     if articles_metadata:
-        save_articles_metadata(articles_metadata, output_dir)
-    
-    # Return list of doc_ids for tracking
-    doc_ids = [article['doc_id'] for article in articles_metadata]
-    logging.info(f"Downloaded {len(doc_ids)} articles: {doc_ids}")
+        doc_ids = [article['doc_id'] for article in articles_metadata]
+        logging.info(f"Successfully downloaded {len(doc_ids)} articles: {doc_ids}")
+    else:
+        doc_ids = []
+        logging.warning("No articles were downloaded")
     
     return doc_ids
 

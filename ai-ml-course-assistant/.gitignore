@@ -66,3 +66,10 @@ dist/
 # Temporary files
 *.tmp
 temp/
+# Docker files (local development only)
+Dockerfile
+docker-compose.yml
+DOCKER.md
+
+# Backup and utility scripts (local only)
+restore_from_backup.py

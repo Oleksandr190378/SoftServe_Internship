@@ -22,9 +22,9 @@ import argparse
 
 try:
     import arxiv
-except ImportError:
+except ImportError as e:
     logging.error("arxiv library not installed. Run: pip install arxiv")
-    exit(1)
+    raise ImportError("arxiv library is required. Install it with: pip install arxiv") from e
 
 from ingest.utils import save_papers_metadata
 
@@ -34,9 +34,14 @@ logging.basicConfig(
     datefmt='%H:%M:%S'
 )
 
+# Configuration constants
 DEFAULT_CATEGORIES = ["cs.LG", "cs.AI", "cs.CV"]
 DEFAULT_OUTPUT_DIR = Path(__file__).parent.parent / "data" / "raw" / "papers"
 DEFAULT_NUM_PAPERS = 10
+
+# Download behavior constants
+DOWNLOAD_DELAY_SECONDS = 2  # Delay between downloads to avoid rate limiting
+TITLE_TRUNCATE_LENGTH = 60  # Max length for title display in logs
 
 CURATED_PAPERS = [
     # === LLMs & Transformers (6) ===
@@ -110,6 +115,128 @@ CURATED_PAPERS_FULL = [
 ]
 
 
+
+
+def _create_paper_metadata(paper: arxiv.Result, paper_id: str) -> Dict:
+    """
+    Create metadata dictionary for a paper.
+    
+    Args:
+        paper: arXiv paper result object
+        paper_id: Paper ID - can be original ID (e.g., '1706.03762') or safe_id (e.g., '1706_03762')
+        
+    Returns:
+        Dictionary with paper metadata
+    """
+    # Extract original arXiv ID from paper object if available
+    try:
+        original_arxiv_id = paper.get_short_id()
+    except:
+        original_arxiv_id = paper_id
+    
+    # Ensure doc_id uses safe format (underscores instead of dots)
+    safe_id = paper_id.replace(".", "_").replace("/", "_")
+    
+    return {
+        "doc_id": f"arxiv_{safe_id}",
+        "arxiv_id": original_arxiv_id,
+        "title": paper.title,
+        "authors": [author.name for author in paper.authors],
+        "abstract": paper.summary,
+        "published": paper.published.isoformat(),
+        "categories": paper.categories,
+        "pdf_url": paper.pdf_url,
+        "source_type": "arxiv",
+        "downloaded_at": datetime.now().isoformat(),
+    }
+
+
+def _download_and_save_pdf(
+    paper: arxiv.Result,
+    metadata: Dict,
+    output_dir: Path,
+    idx: int,
+    total: int
+) -> bool:
+    """
+    Download PDF file and update metadata with path.
+    
+    Args:
+        paper: arXiv paper result object
+        metadata: Paper metadata dictionary (will be modified)
+        output_dir: Directory to save PDF
+        idx: Current paper index (for logging)
+        total: Total number of papers (for logging)
+        
+    Returns:
+        True if download was successful or file already exists, False otherwise
+    """
+    pdf_path = output_dir / f"{metadata['doc_id']}.pdf"
+    
+    try:
+        if pdf_path.exists():
+            logging.info(
+                f"  [{idx}/{total}] Already exists: "
+                f"{paper.title[:TITLE_TRUNCATE_LENGTH]}..."
+            )
+        else:
+            logging.info(
+                f"  [{idx}/{total}] Downloading: "
+                f"{paper.title[:TITLE_TRUNCATE_LENGTH]}..."
+            )
+            paper.download_pdf(filename=str(pdf_path))
+            time.sleep(DOWNLOAD_DELAY_SECONDS)
+        
+        metadata["pdf_path"] = str(pdf_path.absolute())
+        return True
+        
+    except Exception as e:
+        logging.error(f"  Failed to download PDF: {type(e).__name__}: {e}")
+        return False
+
+
+def download_curated_papers_by_ids(paper_ids: List[str], output_dir: Path) -> List[Dict]:
+    """
+    Download specific papers by their arXiv IDs.
+    
+    Args:
+        paper_ids: List of arXiv paper IDs (e.g., ['1706.03762', '1512.03385'])
+        output_dir: Directory to save PDFs
+        
+    Returns:
+        List of paper metadata dictionaries
+        
+    Raises:
+        ValueError: If paper_ids is empty
+    """
+    if not paper_ids:
+        raise ValueError("paper_ids list cannot be empty")
+    
+    output_dir.mkdir(parents=True, exist_ok=True)
+    papers_metadata = []
+    
+    logging.info(f"Downloading {len(paper_ids)} papers by ID from arXiv")
+    
+    for idx, paper_id in enumerate(paper_ids, 1):
+        try:
+            search = arxiv.Search(id_list=[paper_id])
+            paper = next(search.results())
+
+            metadata = _create_paper_metadata(paper, paper_id)
+            
+            if _download_and_save_pdf(paper, metadata, output_dir, idx, len(paper_ids)):
+                papers_metadata.append(metadata)
+            
+        except StopIteration:
+            logging.error(f"  Paper {paper_id} not found in arXiv")
+            continue
+        except Exception as e:
+            logging.error(f"  Error downloading {paper_id}: {type(e).__name__}: {e}")
+            continue
+    
+    return papers_metadata
+
+
 def download_curated_papers(output_dir: Path, num_papers: int = 10) -> List[Dict]:
     """
     Download curated list of important AI/ML papers.
@@ -120,49 +247,17 @@ def download_curated_papers(output_dir: Path, num_papers: int = 10) -> List[Dict
         
     Returns:
         List of paper metadata dictionaries
+        
+    Raises:
+        ValueError: If num_papers <= 0
     """
-    output_dir.mkdir(parents=True, exist_ok=True)
-    papers_metadata = []
+    if num_papers <= 0:
+        raise ValueError(f"num_papers must be positive, got {num_papers}")
     
     paper_ids = CURATED_PAPERS[:num_papers]
     
-    logging.info(f"Downloading {len(paper_ids)} curated papers from arXiv")
-    
-    for idx, paper_id in enumerate(paper_ids, 1):
-        try:
-            search = arxiv.Search(id_list=[paper_id])
-            paper = next(search.results())
-
-            metadata = {
-                "doc_id": f"arxiv_{paper_id.replace('.', '_')}",
-                "arxiv_id": paper_id,
-                "title": paper.title,
-                "authors": [author.name for author in paper.authors],
-                "abstract": paper.summary,
-                "published": paper.published.isoformat(),
-                "categories": paper.categories,
-                "pdf_url": paper.pdf_url,
-                "source_type": "arxiv",
-                "downloaded_at": datetime.now().isoformat(),
-            }
-
-            pdf_path = output_dir / f"{metadata['doc_id']}.pdf"
-            
-            if pdf_path.exists():
-                logging.info(f"  [{idx}/{len(paper_ids)}] Already exists: {paper.title[:60]}...")
-            else:
-                logging.info(f"  [{idx}/{len(paper_ids)}] Downloading: {paper.title[:60]}...")
-                paper.download_pdf(filename=str(pdf_path))
-                time.sleep(2)  
-            
-            metadata["pdf_path"] = str(pdf_path.absolute())
-            papers_metadata.append(metadata)
-            
-        except Exception as e:
-            logging.error(f"  Error downloading {paper_id}: {e}")
-            continue
-    
-    return papers_metadata
+    # Reuse existing function to avoid code duplication
+    return download_curated_papers_by_ids(paper_ids, output_dir)
 
 
 def search_and_download_papers(
@@ -182,7 +277,17 @@ def search_and_download_papers(
         
     Returns:
         List of paper metadata dictionaries
+        
+    Raises:
+        ValueError: If query is empty, categories list is empty, or max_results <= 0
     """
+    if not query or not query.strip():
+        raise ValueError("query cannot be empty")
+    if not categories:
+        raise ValueError("categories list cannot be empty")
+    if max_results <= 0:
+        raise ValueError(f"max_results must be positive, got {max_results}")
+    
     output_dir.mkdir(parents=True, exist_ok=True)
     papers_metadata = []
     
@@ -192,44 +297,34 @@ def search_and_download_papers(
     logging.info(f"Searching arXiv with query: {full_query}")
     logging.info(f"Max results: {max_results}")
 
-    search = arxiv.Search(
-        query=full_query,
-        max_results=max_results,
-        sort_by=arxiv.SortCriterion.Relevance,
-    )
+    try:
+        search = arxiv.Search(
+            query=full_query,
+            max_results=max_results,
+            sort_by=arxiv.SortCriterion.Relevance,
+        )
+    except Exception as e:
+        logging.error(f"Failed to create arXiv search: {type(e).__name__}: {e}")
+        return papers_metadata
     
-    for idx, paper in enumerate(search.results(), 1):
+    try:
+        results = search.results()
+    except Exception as e:
+        logging.error(f"Failed to execute arXiv search: {type(e).__name__}: {e}")
+        return papers_metadata
+    
+    for idx, paper in enumerate(results, 1):
         try:
             arxiv_id = paper.get_short_id()
             safe_id = arxiv_id.replace(".", "_").replace("/", "_")
 
-            metadata = {
-                "doc_id": f"arxiv_{safe_id}",
-                "arxiv_id": arxiv_id,
-                "title": paper.title,
-                "authors": [author.name for author in paper.authors],
-                "abstract": paper.summary,
-                "published": paper.published.isoformat(),
-                "categories": paper.categories,
-                "pdf_url": paper.pdf_url,
-                "source_type": "arxiv",
-                "downloaded_at": datetime.now().isoformat(),
-            }
-
-            pdf_path = output_dir / f"{metadata['doc_id']}.pdf"
+            metadata = _create_paper_metadata(paper, safe_id)
             
-            if pdf_path.exists():
-                logging.info(f"  [{idx}/{max_results}] Already exists: {paper.title[:60]}...")
-            else:
-                logging.info(f"  [{idx}/{max_results}] Downloading: {paper.title[:60]}...")
-                paper.download_pdf(filename=str(pdf_path))
-                time.sleep(3)  
-            
-            metadata["pdf_path"] = str(pdf_path.absolute())
-            papers_metadata.append(metadata)
+            if _download_and_save_pdf(paper, metadata, output_dir, idx, max_results):
+                papers_metadata.append(metadata)
             
         except Exception as e:
-            logging.error(f"  Error downloading paper {idx}: {e}")
+            logging.error(f"  Error downloading paper {idx}: {type(e).__name__}: {e}")
             continue
     
     return papers_metadata
@@ -257,7 +352,18 @@ def download_papers(
         
     Returns:
         List of downloaded doc_ids (e.g., ['arxiv_1706_03762', 'arxiv_1512_03385'])
+        
+    Raises:
+        ValueError: If mode is invalid or max_papers <= 0
     """
+    # Validate mode
+    if mode not in ["curated", "search"]:
+        raise ValueError(f"mode must be 'curated' or 'search', got '{mode}'")
+    
+    # Validate max_papers
+    if max_papers <= 0:
+        raise ValueError(f"max_papers must be positive, got {max_papers}")
+    
     if output_dir is None:
         output_dir = DEFAULT_OUTPUT_DIR
     if categories is None:
@@ -267,11 +373,11 @@ def download_papers(
 
     if mode == "curated":
         if paper_ids:
-            global CURATED_PAPERS
-            original_list = CURATED_PAPERS
-            CURATED_PAPERS = paper_ids
-            papers_metadata = download_curated_papers(output_dir, len(paper_ids))
-            CURATED_PAPERS = original_list
+            # Use custom paper_ids instead of modifying global constant
+            papers_metadata = download_curated_papers_by_ids(
+                paper_ids=paper_ids,
+                output_dir=output_dir
+            )
         else:
             papers_metadata = download_curated_papers(output_dir, max_papers)
     else:
@@ -283,10 +389,11 @@ def download_papers(
         )
 
     if papers_metadata:
-        save_papers_metadata(papers_metadata, output_dir)
-
-    doc_ids = [paper["doc_id"] for paper in papers_metadata]
-    logging.info(f"Downloaded {len(doc_ids)} papers: {doc_ids}")
+        doc_ids = [paper["doc_id"] for paper in papers_metadata]
+        logging.info(f"Successfully downloaded {len(doc_ids)} papers: {doc_ids}")
+    else:
+        doc_ids = []
+        logging.warning("No papers were downloaded")
     
     return doc_ids
 

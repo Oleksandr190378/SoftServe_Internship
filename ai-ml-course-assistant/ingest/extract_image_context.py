@@ -11,8 +11,189 @@ Improvements:
 """
 
 import re
+import logging
 from typing import Dict, List, Optional, Tuple
-import fitz  
+import fitz
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%H:%M:%S'
+)
+
+# Caption extraction constants
+CAPTION_PATTERN = r'^(Figure|Fig\.|Table)\s+\d+:?\s*'
+CAPTION_MAX_VERTICAL_DISTANCE = 80      # pixels - max distance from image to caption
+CAPTION_MAX_LENGTH = 200                # characters - max caption length
+
+# Context extraction constants
+CONTEXT_MAX_CHARS = 250                 # characters - max context size
+PARAGRAPH_Y_GAP_THRESHOLD = 5           # pixels - threshold for paragraph grouping
+SENTENCE_MARKER_LENGTH = 2              # characters - length of ". " marker
+
+SENTENCE_END_MARKERS = ['. ', '.\n', '! ', '!\n', '? ', '?\n']
+
+FIGURE_REFERENCE_PATTERN = r'\b(Figure|Fig\.|Table)\s+\d+\b'
+
+
+def _collect_text_blocks_from_page(page) -> List[Dict]:
+    """
+    STAGE 3: DRY - extract text collection logic.
+    
+    Collect all text blocks with positions from a page.
+    
+    Args:
+        page: PyMuPDF page object
+    
+    Returns:
+        List of text items with coordinates
+    """
+    try:
+        text_dict = page.get_text("dict")
+        blocks = text_dict.get("blocks", [])
+    except Exception as e:
+        logging.error(f"Failed to extract text from page: {e}")
+        return []
+    
+    text_with_positions = []
+    for block in blocks:
+        if block.get("type") != 0:  # Skip non-text blocks
+            continue
+        
+        try:
+            for line in block.get("lines", []):
+                for span in line.get("spans", []):
+                    text_with_positions.append({
+                        "text": span["text"],
+                        "y0": span["bbox"][1],
+                        "y1": span["bbox"][3]
+                    })
+        except (KeyError, IndexError) as e:
+            logging.warning(f"Failed to extract text span: {e}")
+            continue
+    
+    return text_with_positions
+
+
+def _find_line_index(block: Dict, starting_line: Dict) -> int:
+    """
+    STAGE 1: Validation - find line by value comparison, not reference.
+    STAGE 3: DRY - extract line finding logic.
+    
+    Find index of starting line in block.
+    
+    Args:
+        block: Text block containing lines
+        starting_line: Line to find
+    
+    Returns:
+        Index of line, or -1 if not found
+    """
+    if not isinstance(block, dict) or "lines" not in block:
+        logging.warning("Invalid block structure")
+        return -1
+    
+    try:
+        for idx, line in enumerate(block.get("lines", [])):
+            # Compare by line content, not reference
+            if isinstance(line, dict) and "spans" in line:
+                line_text = " ".join([span.get("text", "") for span in line.get("spans", [])])
+                starting_text = " ".join([span.get("text", "") for span in starting_line.get("spans", [])])
+                
+                if line_text == starting_text:
+                    return idx
+        
+        return -1
+    except Exception as e:
+        logging.warning(f"Error finding line index: {e}")
+        return -1
+
+
+def _extract_text_from_lines(lines: List[Dict], start_idx: int, max_length: int) -> str:
+    """
+    
+    Extract and concatenate text from lines starting at index.
+    
+    Args:
+        lines: List of line dicts
+        start_idx: Starting line index
+        max_length: Maximum characters
+    
+    Returns:
+        Concatenated text
+    """
+    caption_text = ""
+    
+    for line_idx in range(start_idx, len(lines)):
+        try:
+            line = lines[line_idx]
+            if isinstance(line, dict) and "spans" in line:
+                line_text = " ".join([span.get("text", "") for span in line.get("spans", [])])
+                caption_text += line_text + " "
+                
+                if len(caption_text) > max_length:
+                    break
+        except Exception as e:
+            logging.warning(f"Error extracting text from line {line_idx}: {e}")
+            continue
+    
+    return caption_text.strip()
+
+
+def _extract_sentence_from_end(text: str, max_chars: int) -> str:
+    """
+    
+    Extract sentence from end of text up to max_chars.
+    
+    Args:
+        text: Source text
+        max_chars: Maximum characters to consider
+    
+    Returns:
+        Extracted text ending with sentence boundary
+    """
+    if not text or max_chars < 1:
+        return ""
+    
+    chunk = text[-max_chars:] if len(text) > max_chars else text
+    
+    last_boundary = -1
+    for end_marker in SENTENCE_END_MARKERS:
+        idx = chunk.rfind(end_marker)
+        if idx > last_boundary:
+            last_boundary = idx
+    
+    if last_boundary != -1:
+        return chunk[last_boundary + SENTENCE_MARKER_LENGTH:].strip()
+    
+    return chunk.strip()
+
+
+def _extract_sentence_from_start(text: str, max_chars: int) -> str:
+    """
+    STAGE 3: SRP - extract sentence from start logic.
+    
+    Extract sentence from start of text up to max_chars.
+    
+    Args:
+        text: Source text
+        max_chars: Maximum characters to consider
+    
+    Returns:
+        Extracted text starting with sentence boundary
+    """
+    if not text or max_chars < 1:
+        return ""
+    
+    chunk = text[:max_chars] if len(text) > max_chars else text
+    
+    first_boundary = len(chunk)
+    for end_marker in SENTENCE_END_MARKERS:
+        idx = chunk.find(end_marker)
+        if idx != -1 and idx < first_boundary:
+            first_boundary = idx + 1  # Include the period
+    
+    return chunk[:first_boundary].strip()
 
 
 def extract_figure_caption(text_blocks: List[Dict], image_bbox: fitz.Rect) -> Optional[str]:
@@ -29,32 +210,48 @@ def extract_figure_caption(text_blocks: List[Dict], image_bbox: fitz.Rect) -> Op
     Returns:
         Caption string or None if not found
     """
-    caption_pattern = r'^(Figure|Fig\.|Table)\s+\d+:?\s*'
+    # STAGE 1: Parameter validation
+    if not isinstance(text_blocks, list):
+        logging.error(f"text_blocks must be list, got {type(text_blocks).__name__}")
+        return None
     
-    for block in text_blocks:
-        if 'lines' not in block:
-            continue
+    if image_bbox is None or not hasattr(image_bbox, 'y0'):
+        logging.error("image_bbox is None or invalid")
+        return None
+    
+    try:
+        for block in text_blocks:
+            if not isinstance(block, dict) or 'lines' not in block:
+                continue
             
-        for line in block['lines']:
-            for span in line['spans']:
-                text = span['text'].strip()
-
-                if re.match(caption_pattern, text, re.IGNORECASE):
-                    span_rect = fitz.Rect(span['bbox'])
-
-                    vertical_distance = min(
-                        abs(span_rect.y0 - image_bbox.y1), 
-                        abs(image_bbox.y0 - span_rect.y1)  
-                    )
+            for line in block.get('lines', []):
+                if not isinstance(line, dict) or 'spans' not in line:
+                    continue
                     
-                    if vertical_distance < 80:
-                        full_caption = extract_full_caption_text(block, line)
-                        return full_caption
+                for span in line.get('spans', []):
+                    if not isinstance(span, dict) or 'text' not in span:
+                        continue
+                    
+                    text = span['text'].strip()
+
+                    if re.match(CAPTION_PATTERN, text, re.IGNORECASE):
+                        span_rect = fitz.Rect(span['bbox'])
+
+                        vertical_distance = min(
+                            abs(span_rect.y0 - image_bbox.y1), 
+                            abs(image_bbox.y0 - span_rect.y1)  
+                        )
+                        
+                        if vertical_distance < CAPTION_MAX_VERTICAL_DISTANCE:
+                            full_caption = extract_full_caption_text(block, line)
+                            return full_caption
+    except Exception as e:
+        logging.error(f"Error extracting figure caption: {e}")
     
     return None
 
 
-def extract_full_caption_text(block: Dict, starting_line: Dict, max_length: int = 200) -> str:
+def extract_full_caption_text(block: Dict, starting_line: Dict, max_length: int = CAPTION_MAX_LENGTH) -> str:
     """
     Extract complete caption text from starting line and following lines.
     
@@ -66,24 +263,31 @@ def extract_full_caption_text(block: Dict, starting_line: Dict, max_length: int 
     Returns:
         Full caption text
     """
-    caption_text = ""
-    start_collecting = False
+    # STAGE 1: Parameter validation
+    if not isinstance(block, dict) or 'lines' not in block:
+        logging.warning("Invalid block structure")
+        return ""
     
-    for line in block['lines']:
-        if line == starting_line:
-            start_collecting = True
-        
-        if start_collecting:
-            line_text = " ".join([span['text'] for span in line['spans']])
-            caption_text += line_text + " "
-
-            if len(caption_text) > max_length:
-                break
+    if not isinstance(starting_line, dict):
+        logging.warning("Invalid starting_line")
+        return ""
     
-    return caption_text.strip()
+    if max_length < 1:
+        logging.warning(f"Invalid max_length {max_length}")
+        return ""
+    
+    # STAGE 3: Use helper function to find line
+    start_idx = _find_line_index(block, starting_line)
+    
+    if start_idx == -1:
+        logging.warning("Starting line not found in block")
+        return ""
+    
+    # STAGE 3: Use helper function to extract text
+    return _extract_text_from_lines(block.get('lines', []), start_idx, max_length)
 
 
-def _extract_sentence_boundary_from_text(text: str, max_chars: int = 250, from_end: bool = False) -> str:
+def _extract_sentence_boundary_from_text(text: str, max_chars: int = CONTEXT_MAX_CHARS, from_end: bool = False) -> str:
     """
     Extract text up to nearest sentence boundary.
     
@@ -95,37 +299,23 @@ def _extract_sentence_boundary_from_text(text: str, max_chars: int = 250, from_e
     Returns:
         Extracted text up to sentence boundary
     """
+    # STAGE 1: Parameter validation
+    if not isinstance(text, str):
+        logging.warning(f"text must be str, got {type(text).__name__}")
+        return ""
+    
     if not text:
         return ""
     
-    sentence_ends = ['. ', '.\n', '! ', '!\n', '? ', '?\n']
+    if max_chars < 1:
+        logging.warning(f"max_chars must be >= 1, got {max_chars}")
+        return ""
     
+    # STAGE 3: Delegate to specialized functions
     if from_end:
-        # For context_before: take last max_chars and find last sentence boundary
-        chunk = text[-max_chars:] if len(text) > max_chars else text
-        
-        last_boundary = -1
-        for end_marker in sentence_ends:
-            idx = chunk.rfind(end_marker)
-            if idx > last_boundary:
-                last_boundary = idx
-        
-        if last_boundary != -1:
-            # Return text after the boundary marker
-            return chunk[last_boundary + 2:].strip()
-        return chunk.strip()
-    
+        return _extract_sentence_from_end(text, max_chars)
     else:
-        # For context_after: take first max_chars and find first sentence boundary
-        chunk = text[:max_chars] if len(text) > max_chars else text
-        
-        first_boundary = len(chunk)
-        for end_marker in sentence_ends:
-            idx = chunk.find(end_marker)
-            if idx != -1 and idx < first_boundary:
-                first_boundary = idx + 1  # Include the period
-        
-        return chunk[:first_boundary].strip()
+        return _extract_sentence_from_start(text, max_chars)
 
 
 def _group_text_into_paragraphs(text_items: List[Dict]) -> List[Tuple[str, float, float]]:
@@ -138,7 +328,17 @@ def _group_text_into_paragraphs(text_items: List[Dict]) -> List[Tuple[str, float
     Returns:
         List of (paragraph_text, start_y, end_y) tuples
     """
+    # STAGE 1: Parameter validation
+    if not isinstance(text_items, list):
+        logging.warning(f"text_items must be list, got {type(text_items).__name__}")
+        return []
+    
     if not text_items:
+        return []
+    
+    # Validate first item structure
+    if not isinstance(text_items[0], dict) or 'y0' not in text_items[0]:
+        logging.warning("Invalid text_items structure")
         return []
     
     paragraphs = []
@@ -147,26 +347,34 @@ def _group_text_into_paragraphs(text_items: List[Dict]) -> List[Tuple[str, float
     current_y_end = text_items[0]["y1"]
     
     for i, item in enumerate(text_items):
-        if not current_para:
-            # Start new paragraph
-            current_para.append(item["text"])
-            current_y_start = item["y0"]
-            current_y_end = item["y1"]
-        else:
-            # Check if this item continues the paragraph (y-distance < 5)
-            y_gap = item["y0"] - current_y_end
+        try:
+            if not isinstance(item, dict) or 'text' not in item:
+                logging.warning(f"Skipping invalid item at index {i}")
+                continue
             
-            if y_gap < 5:  # Same paragraph
+            if not current_para:
+                # Start new paragraph
                 current_para.append(item["text"])
-                current_y_end = item["y1"]
-            else:
-                # Save current paragraph and start new one
-                para_text = " ".join(current_para)
-                paragraphs.append((para_text, current_y_start, current_y_end))
-                
-                current_para = [item["text"]]
                 current_y_start = item["y0"]
                 current_y_end = item["y1"]
+            else:
+                # Check if this item continues the paragraph
+                y_gap = item["y0"] - current_y_end
+                
+                if y_gap < PARAGRAPH_Y_GAP_THRESHOLD:  # Same paragraph
+                    current_para.append(item["text"])
+                    current_y_end = item["y1"]
+                else:
+                    # Save current paragraph and start new one
+                    para_text = " ".join(current_para)
+                    paragraphs.append((para_text, current_y_start, current_y_end))
+                    
+                    current_para = [item["text"]]
+                    current_y_start = item["y0"]
+                    current_y_end = item["y1"]
+        except (KeyError, TypeError) as e:
+            logging.warning(f"Error processing text item {i}: {e}")
+            continue
     
     # Save last paragraph
     if current_para:
@@ -176,10 +384,9 @@ def _group_text_into_paragraphs(text_items: List[Dict]) -> List[Tuple[str, float
     return paragraphs
 
 
-def _extract_context_from_previous_page(doc, page_num: int, max_chars: int = 250) -> str:
+def _extract_context_from_previous_page(doc, page_num: int, max_chars: int = CONTEXT_MAX_CHARS) -> str:
     """
     Extract context from previous page when current page has empty context_before.
-    
     Args:
         doc: PyMuPDF document object
         page_num: Current page number (0-based)
@@ -188,26 +395,23 @@ def _extract_context_from_previous_page(doc, page_num: int, max_chars: int = 250
     Returns:
         Context text from previous page (last paragraph or sentence)
     """
-    if page_num == 0:
+    # STAGE 1: Parameter validation
+    if page_num <= 0:
+        return ""
+    
+    if doc is None:
+        logging.warning("doc is None")
+        return ""
+    
+    if max_chars < 1:
+        logging.warning(f"max_chars must be >= 1, got {max_chars}")
         return ""
     
     try:
         prev_page = doc[page_num - 1]
-        text_dict = prev_page.get_text("dict")
-        blocks = text_dict.get("blocks", [])
         
-        # Collect all text from previous page
-        text_items = []
-        for block in blocks:
-            if block.get("type") != 0:
-                continue
-            for line in block.get("lines", []):
-                for span in line.get("spans", []):
-                    text_items.append({
-                        "text": span["text"],
-                        "y0": span["bbox"][1],
-                        "y1": span["bbox"][3]
-                    })
+        # STAGE 3: DRY - use helper function
+        text_items = _collect_text_blocks_from_page(prev_page)
         
         if not text_items:
             return ""
@@ -218,7 +422,11 @@ def _extract_context_from_previous_page(doc, page_num: int, max_chars: int = 250
         # Extract last sentence(s) up to max_chars
         return _extract_sentence_boundary_from_text(full_text, max_chars, from_end=True)
     
-    except Exception:
+    except IndexError as e:
+        logging.warning(f"Page {page_num - 1} does not exist: {e}")
+        return ""
+    except Exception as e:
+        logging.warning(f"Error extracting context from previous page: {e}")
         return ""
 
 
@@ -227,7 +435,7 @@ def extract_surrounding_context(
     image_bbox: fitz.Rect,
     doc=None,
     page_num: int = 0,
-    max_chars: int = 250
+    max_chars: int = CONTEXT_MAX_CHARS
 ) -> Dict[str, str]:
     """
     Extract text surrounding an image using sentence boundaries and paragraph detection.
@@ -251,23 +459,34 @@ def extract_surrounding_context(
             "figure_caption": "Figure X: ..." or None
         }
     """
-    text_dict = page.get_text("dict")
-    blocks = text_dict.get("blocks", [])
+    # STAGE 1: Parameter validation
+    if page is None:
+        logging.error("page is None")
+        return {"before": "", "after": "", "figure_caption": None}
+    
+    if image_bbox is None or not hasattr(image_bbox, 'y0'):
+        logging.error("image_bbox is None or invalid")
+        return {"before": "", "after": "", "figure_caption": None}
+    
+    if max_chars < 1:
+        logging.warning(f"max_chars must be >= 1, got {max_chars}")
+        max_chars = CONTEXT_MAX_CHARS
+    
+    try:
+        text_dict = page.get_text("dict")
+        blocks = text_dict.get("blocks", [])
+    except Exception as e:
+        logging.error(f"Failed to extract text from page: {e}")
+        return {"before": "", "after": "", "figure_caption": None}
 
+    # STAGE 3: Use helper function
     figure_caption = extract_figure_caption(blocks, image_bbox)
 
-    text_with_positions = []
-    for block in blocks:
-        if block.get("type") != 0:  
-            continue
-        
-        for line in block.get("lines", []):
-            for span in line.get("spans", []):
-                text_with_positions.append({
-                    "text": span["text"],
-                    "y0": span["bbox"][1],  # Top y-coordinate
-                    "y1": span["bbox"][3]   # Bottom y-coordinate
-                })
+    # STAGE 3: DRY - use helper function for text collection
+    text_with_positions = _collect_text_blocks_from_page(page)
+    
+    if not text_with_positions:
+        return {"before": "", "after": "", "figure_caption": figure_caption}
 
     text_with_positions.sort(key=lambda x: x["y0"])
 
@@ -302,75 +521,3 @@ def extract_surrounding_context(
         "after": after_text,
         "figure_caption": figure_caption
     }
-
-
-def extract_figure_references(text: str) -> List[str]:
-    """
-    Find references to figures/tables in text.
-    
-    Detects patterns like:
-    - "see Figure 1"
-    - "(Figure 2)"
-    - "as shown in Table 3"
-    - "Fig. 4 illustrates"
-    
-    Args:
-        text: Text to search for references
-        
-    Returns:
-        List of figure/table references (e.g., ["Figure 1", "Table 2"])
-    """
-    pattern = r'\b(Figure|Fig\.|Table)\s+\d+\b'
-    matches = re.findall(pattern, text, re.IGNORECASE)
-
-    normalized = []
-    for match in matches:
-        if match.lower().startswith("fig"):
-            normalized.append(re.sub(r'^Fig\.', 'Figure', match, flags=re.IGNORECASE))
-        else:
-            normalized.append(match)
-
-    seen = set()
-    unique_refs = []
-    for ref in normalized:
-        if ref not in seen:
-            seen.add(ref)
-            unique_refs.append(ref)
-    
-    return unique_refs
-
-
-if __name__ == "__main__":
-    # Test with a sample PDF
-    import sys
-    
-    if len(sys.argv) < 2:
-        print("Usage: python extract_image_context.py <pdf_path>")
-        sys.exit(1)
-    
-    pdf_path = sys.argv[1]
-    doc = fitz.open(pdf_path)
-    
-    for page_num in range(len(doc)):
-        page = doc[page_num]
-
-        image_list = page.get_images(full=True)
-        
-        for img_idx, img_info in enumerate(image_list):
-            print(f"\nPage {page_num + 1}, Image {img_idx + 1}:")
-            
-            # For demo, use page center as fake image position
-            image_bbox = fitz.Rect(100, 200, 400, 500)
-            
-            context = extract_surrounding_context(
-                page, 
-                image_bbox, 
-                doc=doc, 
-                page_num=page_num
-            )
-            
-            print(f"Caption: {context['figure_caption']}")
-            print(f"Before: {context['before'][:100]}...")
-            print(f"After: {context['after'][:100]}...")
-    
-    doc.close()

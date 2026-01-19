@@ -33,6 +33,33 @@ st.set_page_config(
 IMAGES_DIR = BASE_DIR / "data" / "processed" / "images"
 IMAGES_METADATA_FILE = BASE_DIR / "data" / "processed" / "images_metadata.json"
 
+# Validate paths on startup
+if not IMAGES_DIR.exists():
+    import logging
+    logging.warning(f"Images directory not found: {IMAGES_DIR}")
+    IMAGES_DIR = None
+
+if not IMAGES_METADATA_FILE.exists():
+    import logging
+    logging.warning(f"Images metadata file not found: {IMAGES_METADATA_FILE}")
+    IMAGES_METADATA_FILE = None
+
+# UI Configuration Constants
+# Text retrieval settings
+DEFAULT_K_TEXT = 3  # Default number of text chunks to retrieve
+MIN_K_TEXT = 2      # Minimum k_text value
+MAX_K_TEXT = 5      # Maximum k_text value
+
+# Image display settings
+INLINE_IMAGE_WIDTH = 400      # Width for inline images in answer section
+GRID_IMAGE_WIDTH = 250        # Width for images in gallery grid
+CAPTION_TEXT_AREA_HEIGHT = 150  # Height for image caption text areas (inline)
+TEXT_AREA_HEIGHT = 200        # Height for general text areas (debug, sources)
+
+# Layout settings
+IMAGE_GRID_COLUMNS = 3        # Number of columns in image gallery grid
+METRICS_COLUMNS = 2           # Number of columns for metrics display
+
 # Custom CSS
 st.markdown("""
 <style>
@@ -99,10 +126,94 @@ def load_generator():
 @st.cache_data
 def load_images_metadata():
     """Load images metadata for file path mapping."""
-    if IMAGES_METADATA_FILE.exists():
+    if IMAGES_METADATA_FILE is None:
+        return []
+    
+    if not IMAGES_METADATA_FILE.exists():
+        return []
+    
+    try:
         with open(IMAGES_METADATA_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    return []
+            data = json.load(f)
+            # Validate data type
+            if not isinstance(data, list):
+                import logging
+                logging.error(f"Invalid metadata format: expected list, got {type(data)}")
+                return []
+            return data
+    except json.JSONDecodeError as e:
+        import logging
+        logging.error(f"Failed to parse images metadata JSON: {e}")
+        return []
+    except (OSError, IOError) as e:
+        import logging
+        logging.error(f"Failed to read images metadata file: {e}")
+        return []
+
+
+def _extract_paper_id(image_id: str) -> str:
+    """Extract paper_id from image_id by removing suffix patterns.
+    
+    Single Responsibility: Pattern matching and extraction.
+    
+    Args:
+        image_id: Full image ID with suffix
+        
+    Returns:
+        paper_id without suffix
+    """
+    # Pattern 1: _embedded_XXX (PDFs - raster images)
+    if '_embedded_' in image_id:
+        return image_id.rsplit('_embedded_', 1)[0]
+    # Pattern 2: _vector_XXX (PDFs - vector images)
+    elif '_vector_' in image_id:
+        return image_id.rsplit('_vector_', 1)[0]
+    # Pattern 3: _web_XXX (JSON sources)
+    elif '_web_' in image_id:
+        return image_id.rsplit('_web_', 1)[0]
+    # Fallback: use full image_id
+    return image_id
+
+
+def _try_image_path_variants(base_dir: Path, paper_id: str, image_id: str) -> Path:
+    """Try multiple path variants to find image file.
+    
+    Single Responsibility: File system path resolution.
+    
+    Priority:
+    1. paper_id subfolder with PNG
+    2. paper_id subfolder with JPG
+    3. Direct path with PNG (backward compatibility)
+    4. Direct path with JPG (backward compatibility)
+    
+    Args:
+        base_dir: Base images directory
+        paper_id: Extracted paper ID
+        image_id: Full image ID
+        
+    Returns:
+        Path to image file or None if not found
+    """
+    # Try PNG in paper subfolder
+    png_path = base_dir / paper_id / f"{image_id}.png"
+    if png_path.exists():
+        return png_path
+    
+    # Try JPG in paper subfolder
+    jpg_path = base_dir / paper_id / f"{image_id}.jpg"
+    if jpg_path.exists():
+        return jpg_path
+    
+    # Fallback: try direct path (backward compatibility)
+    png_path_direct = base_dir / f"{image_id}.png"
+    if png_path_direct.exists():
+        return png_path_direct
+    
+    jpg_path_direct = base_dir / f"{image_id}.jpg"
+    if jpg_path_direct.exists():
+        return jpg_path_direct
+    
+    return None
 
 
 def get_image_path(image_id: str) -> Path:
@@ -113,41 +224,22 @@ def get_image_path(image_id: str) -> Path:
     - PDF: arxiv_1409_3215_vector_006_01 -> paper_id: arxiv_1409_3215
     - JSON: realpython_numpy-tutorial_web_004 -> paper_id: realpython_numpy-tutorial
     - JSON: medium_agents-plan-tasks_web_001 -> paper_id: medium_agents-plan-tasks
+    
+    Args:
+        image_id: Image identifier with suffix pattern
+        
+    Returns:
+        Path to image file or None if not found
     """
-    # Extract paper_id by removing suffix patterns
-    # Pattern 1: _embedded_XXX (PDFs - raster images)
-    if '_embedded_' in image_id:
-        paper_id = image_id.rsplit('_embedded_', 1)[0]
-    # Pattern 2: _vector_XXX (PDFs - vector images)
-    elif '_vector_' in image_id:
-        paper_id = image_id.rsplit('_vector_', 1)[0]
-    # Pattern 3: _web_XXX (JSON sources)
-    elif '_web_' in image_id:
-        paper_id = image_id.rsplit('_web_', 1)[0]
-    # Fallback: use full image_id
-    else:
-        paper_id = image_id
+    # Early return if IMAGES_DIR not available
+    if IMAGES_DIR is None or not IMAGES_DIR.exists():
+        return None
     
-    # Try PNG in paper subfolder
-    png_path = IMAGES_DIR / paper_id / f"{image_id}.png"
-    if png_path.exists():
-        return png_path
+    # Extract paper_id using helper (SRP)
+    paper_id = _extract_paper_id(image_id)
     
-    # Try JPG in paper subfolder
-    jpg_path = IMAGES_DIR / paper_id / f"{image_id}.jpg"
-    if jpg_path.exists():
-        return jpg_path
-    
-    # Fallback: try direct path (backward compatibility)
-    png_path_direct = IMAGES_DIR / f"{image_id}.png"
-    if png_path_direct.exists():
-        return png_path_direct
-    
-    jpg_path_direct = IMAGES_DIR / f"{image_id}.jpg"
-    if jpg_path_direct.exists():
-        return jpg_path_direct
-    
-    return None
+    # Try path variants using helper (SRP)
+    return _try_image_path_variants(IMAGES_DIR, paper_id, image_id)
 
 
 def get_confidence_badge_html(confidence: str, similarity: float) -> str:
@@ -165,16 +257,109 @@ def get_confidence_badge_html(confidence: str, similarity: float) -> str:
     return f'<span class="{badge_class}">{icon} {confidence} ({similarity:.3f})</span>'
 
 
+def _filter_cited_images(images: list, cited_image_ids: list) -> list:
+    """Filter images to only those that were cited, preserving original indices.
+    
+    Single Responsibility: Data filtering while preserving ordering.
+    
+    Args:
+        images: All retrieved images
+        cited_image_ids: List of cited image IDs
+        
+    Returns:
+        List of dicts with {img_data, original_index} maintaining citation labels
+    """
+    cited_with_indices = []
+    for i, img in enumerate(images):
+        if img['image_id'] in cited_image_ids:
+            cited_with_indices.append({
+                'img_data': img,
+                'original_index': i
+            })
+    return cited_with_indices
+
+
+def _render_inline_image(img_data: dict, original_index: int, image_id: str):
+    """Render single inline image with metadata.
+    
+    Single Responsibility: Image rendering.
+    
+    Args:
+        img_data: Image metadata dictionary
+        original_index: Original image position in full list (for correct labeling)
+        image_id: Image identifier
+    """
+    img_path = get_image_path(image_id)
+    
+    if img_path and img_path.exists():
+        # Image label uses original index to preserve citation consistency
+        label_letter = chr(65 + original_index)  # A, B, C...
+        fig_match = None
+        if 'Figure' in img_data['caption']:
+            import re
+            fig_match = re.search(r'Figure \d+', img_data['caption'])
+        
+        if fig_match:
+            st.markdown(f"**[{label_letter}] {fig_match.group()}**")
+        else:
+            st.markdown(f"**[{label_letter}] Image {original_index+1}**")
+        
+        # Display image (fixed width for better layout)
+        st.image(str(img_path), width=INLINE_IMAGE_WIDTH)
+        
+        # Metadata
+        st.caption(f"Page {img_data['page']}")
+        
+        # Short caption preview
+        with st.expander("📖 Image Description"):
+            st.text_area(
+                "Caption",
+                value=img_data['caption'],
+                height=CAPTION_TEXT_AREA_HEIGHT,
+                key=f"answer_caption_{image_id}",
+                label_visibility="collapsed"
+            )
+    else:
+        st.error(f"⚠️ Image not found: {image_id}")
+
+
+def _render_citations_summary(cited_chunks: list, cited_images: list):
+    """Render citations summary metrics.
+    
+    Single Responsibility: Summary display.
+    
+    Args:
+        cited_chunks: List of cited chunk IDs
+        cited_images: List of cited image IDs
+    """
+    if cited_chunks or cited_images:
+        st.markdown("---")
+        col1, col2 = st.columns(METRICS_COLUMNS)
+        with col1:
+            st.metric("Text Sources Cited", len(cited_chunks))
+        with col2:
+            st.metric("Images Cited", len(cited_images))
+
+
 def display_answer_section(result: dict, llm_input: dict = None):
-    """Display answer with citations and inline cited images."""
+    """Display answer with citations and inline cited images.
+    
+    Orchestrates: validation, answer display, image rendering, summary.
+    """
     st.markdown("### 📝 Answer")
     
-    if result['is_off_topic']:
+    # Validate result dictionary
+    if not result or 'answer' not in result:
+        st.error("⚠️ Invalid result format: missing 'answer' key")
+        return
+    
+    # Handle special cases
+    if result.get('is_off_topic', False):
         st.warning("⚠️ **Off-topic Query**")
         st.info(result['answer'])
         return
     
-    if result['is_insufficient_context']:
+    if result.get('is_insufficient_context', False):
         st.warning("⚠️ **Insufficient Context**")
         st.info(result['answer'])
         return
@@ -187,58 +372,27 @@ def display_answer_section(result: dict, llm_input: dict = None):
         st.markdown("---")
         st.markdown("#### 🖼️ Referenced Images")
         
-        # Filter only cited images
-        cited_imgs = [img for img in llm_input['images'] if img['image_id'] in result['cited_images']]
+        # Filter cited images using helper (SRP) - now includes original indices
+        cited_imgs = _filter_cited_images(llm_input['images'], result['cited_images'])
         
         # Display in grid (2 columns for better visibility)
         cols = st.columns(min(2, len(cited_imgs)))
         
-        for i, img_data in enumerate(cited_imgs):
-            img_id = img_data['image_id']
-            
+        for i, cited_item in enumerate(cited_imgs):
             with cols[i % len(cols)]:
-                # Get image path
-                img_path = get_image_path(img_id)
-                
-                if img_path and img_path.exists():
-                    # Image label (extract figure number from caption if exists)
-                    label_letter = chr(65 + i)  # A, B, C...
-                    fig_match = None
-                    if 'Figure' in img_data['caption']:
-                        import re
-                        fig_match = re.search(r'Figure \d+', img_data['caption'])
-                    
-                    if fig_match:
-                        st.markdown(f"**[{label_letter}] {fig_match.group()}**")
-                    else:
-                        st.markdown(f"**[{label_letter}] Image {i+1}**")
-                    
-                    # Display image (fixed width for better layout)
-                    st.image(str(img_path), width=400)
-                    
-                    # Metadata
-                    st.caption(f"Page {img_data['page']}")
-                    
-                    # Short caption preview
-                    with st.expander("📖 Image Description"):
-                        st.text_area(
-                            "Caption",
-                            value=img_data['caption'],
-                            height=150,
-                            key=f"answer_caption_{img_id}",
-                            label_visibility="collapsed"
-                        )
-                else:
-                    st.error(f"⚠️ Image not found: {img_id}")
+                # Render image using helper (SRP)
+                # Pass original_index to maintain citation label consistency
+                _render_inline_image(
+                    cited_item['img_data'], 
+                    cited_item['original_index'], 
+                    cited_item['img_data']['image_id']
+                )
     
-    # Citations summary
-    if result['cited_chunks'] or result['cited_images']:
-        st.markdown("---")
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric("Text Sources Cited", len(result['cited_chunks']))
-        with col2:
-            st.metric("Images Cited", len(result['cited_images']))
+    # Citations summary using helper (SRP)
+    _render_citations_summary(
+        result.get('cited_chunks', []),
+        result.get('cited_images', [])
+    )
 
 
 def display_sources_section(result: dict, llm_input: dict):
@@ -274,7 +428,7 @@ def display_sources_section(result: dict, llm_input: dict):
             st.text_area(
                 label="Chunk content",
                 value=chunk['text'],
-                height=200,
+                height=TEXT_AREA_HEIGHT,
                 key=f"chunk_{i}",
                 label_visibility="collapsed"
             )
@@ -291,13 +445,13 @@ def display_images_section(result: dict, llm_input: dict):
     images_metadata = load_images_metadata()
     
     # Create grid
-    cols = st.columns(3)
+    cols = st.columns(IMAGE_GRID_COLUMNS)
     
     for i, img_data in enumerate(llm_input['images']):
         img_id = img_data['image_id']
         is_cited = img_id in result['cited_images']
         
-        with cols[i % 3]:
+        with cols[i % IMAGE_GRID_COLUMNS]:
             # Get image path
             img_path = get_image_path(img_id)
             
@@ -306,7 +460,7 @@ def display_images_section(result: dict, llm_input: dict):
                 label_letter = chr(65 + i)  # A, B, C...
                 
                 # Display image (smaller in grid)
-                st.image(str(img_path), width=250)
+                st.image(str(img_path), width=GRID_IMAGE_WIDTH)
                 
                 # Citation marker with label
                 if is_cited:
@@ -324,7 +478,7 @@ def display_images_section(result: dict, llm_input: dict):
                     st.text_area(
                         "Full caption",
                         value=img_data['caption'],
-                        height=200,
+                        height=TEXT_AREA_HEIGHT,
                         key=f"caption_{img_id}",
                         label_visibility="collapsed"
                     )
@@ -491,8 +645,17 @@ def main():
                 st.markdown("---")
                 display_debug_section(result, llm_input)
         
+        except (ValueError, KeyError) as e:
+            st.error(f"❌ Invalid data format: {str(e)}")
+            st.exception(e)
+        except (ConnectionError, TimeoutError) as e:
+            st.error(f"❌ Service error: {str(e)}")
+            st.exception(e)
+        except FileNotFoundError as e:
+            st.error(f"❌ File not found: {str(e)}")
+            st.exception(e)
         except Exception as e:
-            st.error(f"❌ Error: {str(e)}")
+            st.error(f"❌ Unexpected error: {str(e)}")
             st.exception(e)
     
     elif submit and not query:

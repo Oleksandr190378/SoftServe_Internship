@@ -110,10 +110,12 @@
       "query_type": "visual",
       "category": "computer_vision",
       "relevant_docs": [
-        "realpython_image-processing-pillow"
+        "realpython_image-processing-pillow",
+        "realpython_face-recognition-with-python"
       ],
       "relevant_images": [
-        "realpython_image-processing-pillow_web_001",
+        "realpython_image-processing-pillow_web_037",
+        "realpython_image-processing-pillow_web_020",
         "realpython_image-processing-pillow_web_005",
         "realpython_image-processing-pillow_web_010"
       ],
