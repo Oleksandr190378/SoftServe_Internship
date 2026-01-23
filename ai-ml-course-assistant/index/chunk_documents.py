@@ -220,7 +220,8 @@ def chunk_document_with_image_tracking(
 
 if __name__ == "__main__":
     # Simple test with mock data
-    logging.basicConfig(level=logging.INFO)
+    from utils.logging_config import setup_logging
+    setup_logging()
     
     # Test JSON document (no pages)
     test_text = "Sample text for testing chunking. " * 200  # ~6000 chars

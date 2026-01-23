@@ -57,13 +57,29 @@ A production-ready **Retrieval-Augmented Generation (RAG)** system designed to h
 
 ## 🚀 Installation
 
-### 1. Clone or Navigate to Project
+### Quick Setup (Recommended)
+
+**Windows users:** Run the automated setup script:
+```bash
+.\setup.bat
+```
+
+This will:
+- ✅ Check Python version (3.10+)
+- ✅ Create virtual environment
+- ✅ Copy `.env.example` to `.env`
+- ✅ Create data directories
+- ✅ Install all dependencies
+
+### Manual Setup
+
+**1. Clone or Navigate to Project**
 
 ```bash
 cd c:\Users\Користувач\Documents\python_1\softserve\SoftServe_Internship\ai-ml-course-assistant
 ```
 
-### 2. Create Virtual Environment
+**2. Create Virtual Environment**
 
 ```bash
 # Windows
@@ -75,29 +91,31 @@ python -m venv venv
 source venv/bin/activate
 ```
 
-### 3. Install Dependencies
+**3. Install Dependencies**
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Configure Environment Variables
+**4. Configure Environment Variables**
 
-The `.env` file is pre-configured with all necessary keys:
+Create `.env` file from template:
 ```bash
-# Keys already set:
-# - OPENAI_API_KEY
-# - CHROMA_DB_PATH
-# - DATA_DIR
-# And more...
+# Windows
+copy .env.example .env
+
+# macOS/Linux
+cp .env.example .env
 ```
 
-If needed, verify `.env` contains:
+Edit `.env` and add your OpenAI API key:
 ```env
 OPENAI_API_KEY=your_openai_api_key_here
 CHROMA_DB_PATH=./data/chroma_db
 DATA_DIR=./data
 ```
+
+**Get your API key:** https://platform.openai.com/api-keys
 
 ---
 
@@ -213,12 +231,13 @@ ai-ml-course-assistant/
 │   ├── app.py                        # Streamlit web interface ✅
 │   └── assets/                       # UI images/icons
 │
-├── test/                             # Testing & Validation
-│   ├── test_rag/
-│   │   └── test_retriever.py         # Unit tests for retriever
-│   ├── test_ingest/
-│   │   └── ...                       # Tests for ingest modules
-│   └── conftest.py                   # Pytest configuration
+├── test/                             # Testing & Validation (334 tests)
+│   ├── conftest.py                   # Pytest configuration & fixtures
+│   ├── README.md                     # Test suite documentation
+│   ├── test_ingest/                  # Ingest module tests (88 tests)
+│   ├── test_index/                   # Index module tests (83 tests)
+│   ├── test_rag/                     # RAG module tests (63 tests)
+│   └── test_ui/                      # UI tests (100 tests)
 │
 ├── eval/                             # Evaluation Framework
 │   ├── evaluate_retrieval.py         # Metrics: Recall@k, Precision@k, MRR ✅
@@ -237,9 +256,15 @@ ai-ml-course-assistant/
 │
 ├── run_pipeline.py                   # Main CLI for document processing ✅
 ├── run_app.bat                       # Batch script to run Streamlit UI
+├── setup.bat                         # Automated setup script (Windows) ✅
 ├── requirements.txt                  # Python dependencies
+├── pytest.ini                        # Pytest configuration ✅
 ├── .env                              # Environment variables (API keys)
 ├── .env.example                      # Environment template
+├── .gitignore                        # Git ignore rules
+├── .github/
+│   └── workflows/
+│       └── test.yml                  # CI/CD automated testing ✅
 └── README.md                         # This file
 ```
 
@@ -247,18 +272,34 @@ ai-ml-course-assistant/
 
 ## 🧪 Testing & Evaluation
 
-### Run Unit Tests
+### Run Unit Tests (334 tests)
+
+Test configuration is in [pytest.ini](pytest.ini). All tests are organized by module and follow SOLID principles.
 
 ```bash
-# All tests
-python -m pytest test/ -v
+# All tests (334 tests)
+pytest test/ -v
 
 # Specific module
-python -m pytest test/test_rag/ -v
+pytest test/test_ingest/ -v    # Ingest tests (88)
+pytest test/test_index/ -v     # Index tests (83)
+pytest test/test_rag/ -v       # RAG tests (63)
+pytest test/test_ui/ -v        # UI tests (100)
 
-# Coverage report
-python -m pytest test/ --cov=. --cov-report=html
+# By test category
+pytest test/ -m stage1 -v      # Critical validation tests
+pytest test/ -m "rag and stage2" -v  # RAG exception handling
+
+# Stop on first failure
+pytest test/ -x -v
 ```
+
+**Test Statistics:**
+- ✅ **334 tests** total
+- ✅ **100% passing**
+- ✅ Covers all modules: ingest, index, rag, ui
+
+For detailed test documentation, see [test/README.md](test/README.md).
 
 ### Validate Ground Truth
 
@@ -288,9 +329,12 @@ python eval/evaluate_retrieval.py
 - Image retrieval statistics
 - Results saved to `eval/results/retrieval_eval_<timestamp>.json`
 
-### Test Commands Reference
+### Continuous Integration
 
-See [test/COMMANDS.md](test/COMMANDS.md) for advanced testing options.
+Automated testing runs on every push via [GitHub Actions](.github/workflows/test.yml):
+- ✅ Tests on Ubuntu & Windows
+- ✅ Python 3.10, 3.11, 3.12
+- ✅ Code quality checks (flake8, black, isort)
 
 ---
 
@@ -425,7 +469,7 @@ This is an educational project demonstrating production RAG systems.
 **Project:** AI/ML Course Assistant  
 **Domain:** Multimodal RAG System  
 **Status:** Production Ready ✅  
-**Last Updated:** January 19, 2026  
+**Last Updated:** January 21, 2026  
 
 **Key Achievements:**
 - ✅ 54 data sources curated
@@ -456,3 +500,43 @@ Educational project for learning purposes.
 ---
 
 **Ready to use! Start with [Quick Start](#-quick-start-3-steps) section above.** 🚀
+
+
+---
+
+##  Future: Multi-Container Architecture (Phase 6)
+
+**Planned upgrade for production deployment:**
+
+`
+
+   Docker Compose Network (ai-ml-net)       
+
+  Processing   Indexing      Streamlit    
+  Container    Container     Containers   
+                            (x2-3 scale)  
+ - Download    - Chunk                    
+ - Extract     - Embed      - Query       
+ - Caption     - Index      - Retrieve    
+
+  Shared Volume: ../data/ (ChromaDB)        
+  Shared Network: ai-ml-net                 
+
+`
+
+**Benefits of Multi-Container:**
+-  **Security:** Processing isolation from UI
+-  **Efficiency:** UI startup ~15 sec (no processing delay)
+-  **Scalability:** Multiple UI containers, single processor
+-  **Reliability:** Process failure won't crash UI
+-  **Best practices:** Microservices architecture
+
+**Implementation plan:**
+- [ ] Create `docker/Dockerfile.processing` (ingest + index stages)
+- [ ] Create `docker/Dockerfile.ui` (lightweight Streamlit only)
+- [ ] Update `docker-compose.yml` with orchestration
+- [ ] Add health checks between containers
+- [ ] Document CI/CD pipeline integration
+
+**Estimated timeframe:** Phase 6 (post-mentor review)
+

@@ -14,10 +14,13 @@ from typing import List, Dict, Tuple
 from openai import OpenAI
 import openai
 
+# Import centralized configuration
+from config import EMBEDDING
 
-EMBEDDING_MODEL = "text-embedding-3-small"
-EMBEDDING_DIMS = 1536
-BATCH_SIZE = 100  
+# Use config constants
+EMBEDDING_MODEL = EMBEDDING.MODEL
+EMBEDDING_DIMS = EMBEDDING.DIMENSIONS
+BATCH_SIZE = EMBEDDING.BATCH_SIZE  
 
 
 def generate_embeddings_batch(texts: List[str], client: OpenAI) -> List[List[float]]:

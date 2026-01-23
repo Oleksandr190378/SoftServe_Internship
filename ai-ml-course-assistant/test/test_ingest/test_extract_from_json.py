@@ -27,7 +27,8 @@ from ingest.extract_from_json import (
     CONTEXT_LOOK_FORWARD_CHARS,
 )
 
-logging.basicConfig(level=logging.INFO, format='%(levelname)s - %(message)s')
+from utils.logging_config import enable_test_mode
+enable_test_mode()  # Simple format for test output
 logger = logging.getLogger(__name__)
 
 

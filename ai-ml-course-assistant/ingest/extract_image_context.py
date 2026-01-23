@@ -14,12 +14,9 @@ import re
 import logging
 from typing import Dict, List, Optional, Tuple
 import fitz
+from utils.logging_config import setup_logging
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%H:%M:%S'
-)
+setup_logging()
 
 # Caption extraction constants
 CAPTION_PATTERN = r'^(Figure|Fig\.|Table)\s+\d+:?\s*'
