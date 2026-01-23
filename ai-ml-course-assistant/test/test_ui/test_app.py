@@ -326,9 +326,11 @@ class TestFilterCitedImages(unittest.TestCase):
         
         # Assert
         self.assertEqual(len(result), 2)
-        self.assertIn('img1', [img['image_id'] for img in result])
-        self.assertIn('img3', [img['image_id'] for img in result])
-        self.assertNotIn('img2', [img['image_id'] for img in result])
+        # Result format: [{'img_data': {...}, 'original_index': i}, ...]
+        result_ids = [item['img_data']['image_id'] for item in result]
+        self.assertIn('img1', result_ids)
+        self.assertIn('img3', result_ids)
+        self.assertNotIn('img2', result_ids)
     
     def test_filter_cited_images_none(self):
         """No images are cited."""

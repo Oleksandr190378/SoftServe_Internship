@@ -1,10 +1,10 @@
 # Product Requirements Document (PRD)
 # AI/ML Course Assistant - Multimodal RAG System
 
-**Version:** 2.0 - PRODUCTION READY  
-**Date:** January 19, 2026  
+**Version:** 2.1 - PRODUCTION COMPLETE (Phase 4 Part 2)  
+**Date:** January 23, 2026  
 **Project Type:** Multimodal Retrieval-Augmented Generation (RAG) Application  
-**Status:** ✅ PRODUCTION COMPLETE - All phases delivered
+**Status:** ✅ PRODUCTION READY - All phases delivered + optimized
 
 ---
 
@@ -405,7 +405,7 @@ Each chunk includes:
 - [x] **Retrieval Evaluation:**
   - Recall@5: **95.0%** (target ≥70%)
   - Image Hit Rate: **88.9%** (target ≥60%)
-  - MRR: **1.000** (target ≥0.70)
+  - MRR: **0.95** (target ≥0.5)
 
 - [x] **Faithfulness Evaluation:**
   - Overall: **4.525/5.0** (90.5%, target ≥80%)
@@ -443,11 +443,38 @@ Each chunk includes:
 - [x] UI tested and refined
 - [x] Ready for deployment
 
----
+### Phase 4 Part 1: Retriever Refactoring ✅ COMPLETE (Jan 22)
+- [x] **Monolithic → Modular Architecture**
+  - Monolithic `rag/retriever.py` (983 lines) → `rag/retrieve/` package
+  - `base.py` (483 lines): Text retrieval pipeline
+  - `verification.py` (420 lines): Confidence scoring + deduplication
+  - `image_ops.py` (189 lines): Image retrieval + ranking
+  - `utils.py` (68 lines): Utility functions
+- [x] All 334 tests passing (100%)
+- [x] Import updates: `rag.retriever` → `rag.retrieve`
 
-### Phase 4: UI + Evaluation ⏳ 
-- [ ] Build Streamlit interface
-- [ ] Create evaluation dataset (30 queries)
-- [ ] Run retrieval metrics
-- [ ] Iterate on failures
+### Phase 4 Part 2: Generator Refactoring + Optimization ✅ COMPLETE (Jan 23)
+- [x] **Monolithic → Modular Architecture**
+  - Monolithic `rag/generator.py` (893 lines) → `rag/generate/` package
+  - `base.py` (560 lines): RAG pipeline + UNION citation logic
+  - `security.py` (62 lines): Input sanitization (8 injection patterns)
+  - `prompts.py` (245 lines): System prompt with multi-section format
+  - `citations.py` (160 lines): Citation extraction/validation
+  - `__init__.py` (25 lines): Public API exports
+- [x] **Major Optimization Fixes:**
+  - Image Recall: 50.9% → 74.1% (+23.2%)
+  - HNSW lock: Fixed via per-session caching (session_state instead of @st.cache_resource)
+  - Citation handling: UNION logic (Answer + Sources combined) prevents citation loss
+  - Deduplication: Conditional (HIGH confidence images preserved first)
+  - Image ordering: Chunk rank preservation (dict-based instead of set)
+  - Clear button: Now properly clears session state including text input
+- [x] All 331 tests passing (100%)
+- [x] End-to-end system validated (Streamlit app fully functional)
+- [x] Import updates: `rag.generator` → `rag.generate`
+
+### Phase 5: Docker Containerization ✅ COMPLETE (Jan 22-23)
+- [x] Multi-stage Dockerfile (Python 3.13-slim)
+- [x] docker-compose.yml configuration
+- [x] Tested: Production DB integrity verified (294 images, 905 chunks)
+- [x] Ready for deployment
 

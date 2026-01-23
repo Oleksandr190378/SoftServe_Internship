@@ -29,22 +29,22 @@ else:
     import fcntl
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%H:%M:%S'
-)
+from utils.logging_config import setup_logging
+setup_logging()  # Centralized logging configuration
 
-# Constants
-EMBEDDING_MODEL = "text-embedding-3-small"
-EMBEDDING_DIMS = 1536
+# Import centralized configuration
+from config import EMBEDDING, CHROMA_DIR, CHUNKS_BACKUP_DIR, BASE_DIR
+
+# Constants (from config)
+EMBEDDING_MODEL = EMBEDDING.MODEL
+EMBEDDING_DIMS = EMBEDDING.DIMENSIONS
 MAX_ENRICHED_CAPTION_LENGTH = 1000
 MAX_AUTHOR_CAPTION_LENGTH = 500
 
 # Default paths (configurable via IndexConfig)
-DEFAULT_BASE_DIR = Path(__file__).parent.parent
-DEFAULT_CHROMA_DIR = DEFAULT_BASE_DIR / "data" / "chroma_db"
-DEFAULT_CHUNKS_BACKUP_DIR = DEFAULT_BASE_DIR / "data" / "chunks_backup"
+DEFAULT_BASE_DIR = BASE_DIR
+DEFAULT_CHROMA_DIR = CHROMA_DIR
+DEFAULT_CHUNKS_BACKUP_DIR = CHUNKS_BACKUP_DIR
 
 # Legacy globals for backwards compatibility
 BASE_DIR = DEFAULT_BASE_DIR

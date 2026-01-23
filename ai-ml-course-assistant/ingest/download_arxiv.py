@@ -27,12 +27,9 @@ except ImportError as e:
     raise ImportError("arxiv library is required. Install it with: pip install arxiv") from e
 
 from ingest.utils import save_papers_metadata
+from utils.logging_config import setup_logging
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%H:%M:%S'
-)
+setup_logging()
 
 # Configuration constants
 DEFAULT_CATEGORIES = ["cs.LG", "cs.AI", "cs.CV"]
@@ -131,8 +128,9 @@ def _create_paper_metadata(paper: arxiv.Result, paper_id: str) -> Dict:
     # Extract original arXiv ID from paper object if available
     try:
         original_arxiv_id = paper.get_short_id()
-    except:
-        original_arxiv_id = paper_id
+    except (AttributeError, ValueError, TypeError, Exception) as e:
+        logging.warning(f"Could not extract arxiv ID from paper object: {type(e).__name__} - {e}")
+        original_arxiv_id = paper_id if paper_id else "unknown"
     
     # Ensure doc_id uses safe format (underscores instead of dots)
     safe_id = paper_id.replace(".", "_").replace("/", "_")

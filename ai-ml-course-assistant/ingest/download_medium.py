@@ -28,12 +28,8 @@ except ImportError as e:
     logging.error("BeautifulSoup not installed. Run: pip install beautifulsoup4")
     raise ImportError("BeautifulSoup4 is required. Install it with: pip install beautifulsoup4") from e
 
-
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%H:%M:%S'
-)
+from utils.logging_config import setup_logging
+setup_logging()
 
 DEFAULT_OUTPUT_DIR = Path(__file__).parent.parent / "data" / "raw" / "medium"
 DEFAULT_NUM_ARTICLES = 10

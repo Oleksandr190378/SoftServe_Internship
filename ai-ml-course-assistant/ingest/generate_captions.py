@@ -19,6 +19,9 @@ import openai
 from PIL import Image
 import io
 
+# Import centralized configuration
+from config import VISION
+
 
 # ============================================================================
 # CONFIGURATION CONSTANTS - STAGE 2: Constants instead of magic numbers
@@ -185,7 +188,7 @@ class ImageCaptioner:
     
     def __init__(
         self, 
-        model_name: str = "gpt-4.1-mini",
+        model_name: str = VISION.MODEL,
         api_key: Optional[str] = None
     ):
         """

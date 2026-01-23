@@ -36,11 +36,8 @@ from generate_captions import (
     IMAGE_DATA_URL_FORMAT,
 )
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%H:%M:%S'
-)
+from utils.logging_config import enable_test_mode
+enable_test_mode()  # Simple format for test output
 
 
 class TestHelperFunctions(unittest.TestCase):

@@ -25,18 +25,16 @@ import logging
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from rag.retriever import MultimodalRetriever
-from rag.generator import RAGGenerator
+from rag.retrieve import MultimodalRetriever
+from rag.generate import RAGGenerator
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
 from dotenv import load_dotenv
 
 load_dotenv()
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
+from utils.logging_config import setup_logging
+setup_logging()
 
 # Configuration constants
 DEFAULT_GROUND_TRUTH_PATH = "eval/ground_truth.json"

@@ -14,10 +14,10 @@ from unittest.mock import MagicMock, patch, Mock
 import sys
 from pathlib import Path
 
-# Add rag module to path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / "rag"))
+# Add project root to path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from retriever import (
+from rag.retrieve import (
     MultimodalRetriever,
     EMBEDDING_MODEL,
     EMBEDDING_DIMS,
@@ -75,8 +75,8 @@ class TestRetrieverConstants(unittest.TestCase):
 class TestRetrieverInitialization(unittest.TestCase):
     """Test MultimodalRetriever initialization."""
     
-    @patch('retriever.Chroma')
-    @patch('retriever.OpenAIEmbeddings')
+    @patch('rag.retrieve.base.Chroma')
+    @patch('rag.retrieve.base.OpenAIEmbeddings')
     def test_retriever_initialization_success(self, mock_embeddings, mock_chroma):
         """Successfully initialize retriever with valid paths."""
         # Arrange
@@ -94,8 +94,8 @@ class TestRetrieverInitialization(unittest.TestCase):
         mock_embeddings.assert_called_once()
         self.assertEqual(mock_chroma.call_count, 2)  # text and image stores
     
-    @patch('retriever.Chroma')
-    @patch('retriever.OpenAIEmbeddings')
+    @patch('rag.retrieve.base.Chroma')
+    @patch('rag.retrieve.base.OpenAIEmbeddings')
     def test_retriever_initialization_text_collection_error(self, mock_embeddings, mock_chroma):
         """Handle error when text collection initialization fails."""
         # Arrange
@@ -109,8 +109,8 @@ class TestRetrieverInitialization(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             MultimodalRetriever()
     
-    @patch('retriever.Chroma')
-    @patch('retriever.OpenAIEmbeddings')
+    @patch('rag.retrieve.base.Chroma')
+    @patch('rag.retrieve.base.OpenAIEmbeddings')
     def test_retriever_initialization_image_collection_error(self, mock_embeddings, mock_chroma):
         """Handle error when image collection initialization fails."""
         # Arrange
@@ -126,61 +126,59 @@ class TestRetrieverInitialization(unittest.TestCase):
 
 
 class TestParseJsonList(unittest.TestCase):
-    """Test JSON list parsing helper method."""
-    
-    @patch('retriever.Chroma')
-    @patch('retriever.OpenAIEmbeddings')
-    def setUp(self, mock_embeddings, mock_chroma):
-        """Set up mock retriever."""
-        mock_embeddings.return_value = MagicMock()
-        mock_chroma.return_value = MagicMock()
-        self.retriever = MultimodalRetriever()
+    """Test JSON list parsing function."""
     
     def test_parse_json_list_from_json_string(self):
         """Parse JSON-encoded list string."""
+        from rag.retrieve.utils import parse_json_list
         # Act
-        result = self.retriever._parse_json_list('["img1", "img2", "img3"]', 'test_field')
+        result = parse_json_list('["img1", "img2", "img3"]', 'test_field')
         
         # Assert
         self.assertEqual(result, ["img1", "img2", "img3"])
     
     def test_parse_json_list_from_list(self):
         """Return list as-is if already a list."""
+        from rag.retrieve.utils import parse_json_list
         # Act
-        result = self.retriever._parse_json_list(["img1", "img2"], 'test_field')
+        result = parse_json_list(["img1", "img2"], 'test_field')
         
         # Assert
         self.assertEqual(result, ["img1", "img2"])
     
     def test_parse_json_list_from_comma_separated(self):
         """Parse comma-separated string."""
+        from rag.retrieve.utils import parse_json_list
         # Act
-        result = self.retriever._parse_json_list('img1, img2, img3', 'test_field')
+        result = parse_json_list('img1, img2, img3', 'test_field')
         
         # Assert
         self.assertEqual(result, ["img1", "img2", "img3"])
     
     def test_parse_json_list_empty_input(self):
         """Return empty list for empty input."""
+        from rag.retrieve.utils import parse_json_list
         # Act
-        result = self.retriever._parse_json_list('', 'test_field')
+        result = parse_json_list('', 'test_field')
         
         # Assert
         self.assertEqual(result, [])
     
     def test_parse_json_list_none_input(self):
         """Return empty list for None input."""
+        from rag.retrieve.utils import parse_json_list
         # Act
-        result = self.retriever._parse_json_list(None, 'test_field')
+        result = parse_json_list(None, 'test_field')
         
         # Assert
         self.assertEqual(result, [])
     
     def test_parse_json_list_invalid_json(self):
         """Fallback to comma-separated parsing on invalid JSON."""
+        from rag.retrieve.utils import parse_json_list
         # Act - invalid JSON without comma falls back to comma-separated parsing
         # Since "[invalid json" has no comma, it returns as single element
-        result = self.retriever._parse_json_list('[invalid json', 'test_field')
+        result = parse_json_list('[invalid json', 'test_field')
         
         # Assert - no comma in string, so treated as single value
         self.assertEqual(result, ['[invalid json'])
@@ -189,43 +187,38 @@ class TestParseJsonList(unittest.TestCase):
 class TestFormatRelatedImageIds(unittest.TestCase):
     """Test related image ID extraction."""
     
-    @patch('retriever.Chroma')
-    @patch('retriever.OpenAIEmbeddings')
-    def setUp(self, mock_embeddings, mock_chroma):
-        """Set up mock retriever."""
-        mock_embeddings.return_value = MagicMock()
-        mock_chroma.return_value = MagicMock()
-        self.retriever = MultimodalRetriever()
-    
     def test_format_related_image_ids_from_json(self):
         """Extract image IDs from JSON metadata."""
+        from rag.retrieve.utils import format_related_image_ids
         # Arrange
         metadata = {'related_image_ids': '["img_1", "img_2"]'}
         
         # Act
-        result = self.retriever._format_related_image_ids(metadata)
+        result = format_related_image_ids(metadata)
         
         # Assert
         self.assertEqual(result, ["img_1", "img_2"])
     
     def test_format_related_image_ids_missing_field(self):
         """Return empty list when field is missing."""
+        from rag.retrieve.utils import format_related_image_ids
         # Arrange
         metadata = {'doc_id': 'd1'}  # No related_image_ids
         
         # Act
-        result = self.retriever._format_related_image_ids(metadata)
+        result = format_related_image_ids(metadata)
         
         # Assert
         self.assertEqual(result, [])
     
     def test_format_related_image_ids_empty_string(self):
         """Return empty list for empty string."""
+        from rag.retrieve.utils import format_related_image_ids
         # Arrange
         metadata = {'related_image_ids': ''}
         
         # Act
-        result = self.retriever._format_related_image_ids(metadata)
+        result = format_related_image_ids(metadata)
         
         # Assert
         self.assertEqual(result, [])
@@ -234,8 +227,8 @@ class TestFormatRelatedImageIds(unittest.TestCase):
 class TestTextChunkRetrieval(unittest.TestCase):
     """Test text chunk retrieval functionality."""
     
-    @patch('retriever.Chroma')
-    @patch('retriever.OpenAIEmbeddings')
+    @patch('rag.retrieve.base.Chroma')
+    @patch('rag.retrieve.base.OpenAIEmbeddings')
     def setUp(self, mock_embeddings, mock_chroma):
         """Set up mock retriever."""
         mock_embeddings.return_value = MagicMock()
@@ -307,8 +300,8 @@ class TestTextChunkRetrieval(unittest.TestCase):
 class TestImageRetrieval(unittest.TestCase):
     """Test image caption retrieval functionality."""
     
-    @patch('retriever.Chroma')
-    @patch('retriever.OpenAIEmbeddings')
+    @patch('rag.retrieve.base.Chroma')
+    @patch('rag.retrieve.base.OpenAIEmbeddings')
     def setUp(self, mock_embeddings, mock_chroma):
         """Set up mock retriever."""
         mock_embeddings.return_value = MagicMock()
@@ -349,8 +342,8 @@ class TestVisualizationKeywordDetection(unittest.TestCase):
 class TestEmbeddingCache(unittest.TestCase):
     """Test embedding caching mechanism."""
     
-    @patch('retriever.Chroma')
-    @patch('retriever.OpenAIEmbeddings')
+    @patch('rag.retrieve.base.Chroma')
+    @patch('rag.retrieve.base.OpenAIEmbeddings')
     def setUp(self, mock_embeddings, mock_chroma):
         """Set up mock retriever."""
         mock_embeddings.return_value = MagicMock()

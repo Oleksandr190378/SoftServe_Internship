@@ -117,7 +117,12 @@
         "realpython_image-processing-pillow_web_037",
         "realpython_image-processing-pillow_web_020",
         "realpython_image-processing-pillow_web_005",
-        "realpython_image-processing-pillow_web_010"
+        "realpython_image-processing-pillow_web_010",
+        "realpython_image-processing-pillow_web_029",
+        "realpython_image-processing-pillow_web_030",
+        "realpython_image-processing-pillow_web_032",
+        "realpython_image-processing-pillow_web_033",
+        "realpython_image-processing-pillow_web_034"
       ],
       "relevance_level": "high",
       "notes": "Image processing with Pillow tutorial has 48 images showing filters, transformations, effects. Selected representative samples."

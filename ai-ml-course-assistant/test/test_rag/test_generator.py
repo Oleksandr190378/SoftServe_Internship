@@ -14,22 +14,26 @@ from unittest.mock import MagicMock, patch, call
 import sys
 from pathlib import Path
 
-# Add rag module to path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / "rag"))
+# Add project root to path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from generator import (
+from rag.generate import (
     sanitize_query,
+    MAX_IMAGES_TO_CITE
+)
+from rag.generate.base import (
+    RAGGenerator,
     MODEL_NAME,
     TEMPERATURE,
-    MAX_TOKENS,
-    MAX_QUERY_LENGTH,
+    MAX_TOKENS
+)
+from rag.generate.citations import (
     FIRST_CHUNK_INDEX,
     FIRST_IMAGE_LETTER,
-    FIRST_IMAGE_ASCII,
-    MAX_IMAGES_TO_CITE,
-    CHARS_PER_TOKEN_ESTIMATE,
-    MIN_CONTEXT_LINES_BEFORE,
-    MIN_CONTEXT_LINES_AFTER
+    FIRST_IMAGE_ASCII
+)
+from rag.generate.security import (
+    MAX_QUERY_LENGTH
 )
 
 
@@ -41,14 +45,14 @@ class TestGeneratorConstants(unittest.TestCase):
         self.assertEqual(MODEL_NAME, "gpt-5-mini")
     
     def test_temperature_for_grounded_answers(self):
-        """Temperature should be low for factual, grounded responses."""
-        self.assertEqual(TEMPERATURE, 0.1)
-        self.assertLess(TEMPERATURE, 0.5)  # Low temperature
+        """Temperature should be 0.0 for maximum determinism (anti-hallucination)."""
+        self.assertEqual(TEMPERATURE, 0.0)
+        self.assertLessEqual(TEMPERATURE, 0.5)  # Zero or low temperature
     
     def test_max_tokens_reasonable(self):
-        """Max tokens should accommodate reasoning + answer."""
+        """Max tokens should accommodate reasoning + answer (gpt-5-mini supports 128K)."""
         self.assertGreaterEqual(MAX_TOKENS, 8000)
-        self.assertLessEqual(MAX_TOKENS, 50000)
+        self.assertLessEqual(MAX_TOKENS, 128000)  # gpt-5-mini max output
     
     def test_max_query_length_limit(self):
         """Query length should have reasonable limit."""
@@ -60,11 +64,6 @@ class TestGeneratorConstants(unittest.TestCase):
         self.assertEqual(FIRST_CHUNK_INDEX, 1)  # 1-indexed
         self.assertEqual(FIRST_IMAGE_LETTER, 'A')
         self.assertEqual(FIRST_IMAGE_ASCII, 65)  # ASCII for 'A'
-    
-    def test_context_lines_constants(self):
-        """Verify context line boundaries."""
-        self.assertEqual(MIN_CONTEXT_LINES_BEFORE, 3)
-        self.assertEqual(MIN_CONTEXT_LINES_AFTER, 3)
     
     def test_max_images_to_cite(self):
         """Maximum images to cite should be reasonable."""
@@ -239,13 +238,6 @@ class TestModelConfiguration(unittest.TestCase):
 class TestCharacterEstimation(unittest.TestCase):
     """Test token counting estimation."""
     
-    def test_chars_per_token_estimate_reasonable(self):
-        """Character to token ratio should be reasonable."""
-        # English text: ~4 characters per token on average
-        self.assertEqual(CHARS_PER_TOKEN_ESTIMATE, 4)
-        self.assertGreater(CHARS_PER_TOKEN_ESTIMATE, 0)
-
-
 class TestResponseFormat(unittest.TestCase):
     """Test response format requirements."""
     
@@ -253,11 +245,6 @@ class TestResponseFormat(unittest.TestCase):
         """Verify response should have required sections."""
         required_sections = ['Answer:', 'Sources:', 'Reasoning:']
         self.assertEqual(len(required_sections), 3)
-    
-    def test_min_context_lines_reasonable(self):
-        """Minimum context lines for code snippets should be reasonable."""
-        self.assertEqual(MIN_CONTEXT_LINES_BEFORE, 3)
-        self.assertEqual(MIN_CONTEXT_LINES_AFTER, 3)
 
 
 class TestMaxImagesValidation(unittest.TestCase):
@@ -277,19 +264,19 @@ class TestSystemPromptContent(unittest.TestCase):
     
     def test_system_prompt_enforces_format(self):
         """System prompt should enforce three-section format."""
-        from generator import SYSTEM_PROMPT
+        from rag.generate.prompts import SYSTEM_PROMPT
         self.assertIn('Answer:', SYSTEM_PROMPT)
         self.assertIn('Sources:', SYSTEM_PROMPT)
         self.assertIn('Reasoning:', SYSTEM_PROMPT)
     
     def test_system_prompt_enforces_citations(self):
         """System prompt should enforce citation rules."""
-        from generator import SYSTEM_PROMPT
+        from rag.generate.prompts import SYSTEM_PROMPT
         self.assertIn('citation', SYSTEM_PROMPT.lower())
     
     def test_system_prompt_prevents_hallucination(self):
         """System prompt should include hallucination warnings."""
-        from generator import SYSTEM_PROMPT
+        from rag.generate.prompts import SYSTEM_PROMPT
         content_lower = SYSTEM_PROMPT.lower()
         self.assertTrue(
             'hallucination' in content_lower or 

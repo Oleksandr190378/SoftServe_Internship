@@ -15,16 +15,12 @@ import fitz
 from pathlib import Path
 from typing import Dict, List, Optional
 import sys
-from generate_captions import ImageCaptioner
 from dotenv import load_dotenv
 
 load_dotenv()
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%H:%M:%S'
-)
+from utils.logging_config import setup_logging
+setup_logging()
 
 from ingest.extract_image_context import extract_surrounding_context
 from ingest.generate_captions import ImageCaptioner

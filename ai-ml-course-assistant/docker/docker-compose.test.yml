@@ -1,0 +1,94 @@
+version: '3.8'
+
+# =========================================================================
+# Docker Compose Configuration for TESTING
+# Use this for safe testing without affecting production data
+# =========================================================================
+
+services:
+  streamlit-test:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    
+    container_name: ai-ml-course-assistant-test
+    
+    ports:
+      - "8502:8501"  # Different port (8502) to avoid conflict
+    
+    environment:
+      # Python configuration
+      PYTHONUNBUFFERED: 1
+      PYTHONDONTWRITEBYTECODE: 1
+      
+      # Streamlit configuration
+      STREAMLIT_SERVER_PORT: 8501
+      STREAMLIT_SERVER_ADDRESS: 0.0.0.0
+      STREAMLIT_LOGGER_LEVEL: info
+      
+      # LLM & API Keys (from .env file)
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      
+      # Embedding configuration
+      TEXT_EMBEDDING_MODEL: ${TEXT_EMBEDDING_MODEL:-text-embedding-3-small}
+      
+      # ChromaDB configuration
+      CHROMA_DB_PATH: /app/data/chroma_db
+      
+    volumes:
+      # Mount SEPARATE test data directory
+      - ../docker_test_data:/app/data
+      
+      # Mount .env for configuration (read-only)
+      - ../.env:/app/.env:ro
+      
+      # Mount logs directory (optional)
+      - ../docker_test_logs:/app/logs
+    
+    # Restart policy
+    restart: unless-stopped
+    
+    # Resource limits (optional but recommended)
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    
+    # Network (optional, if using multiple services)
+    networks:
+      - ai-ml-test-network
+
+# =========================================================================
+# Network Configuration
+# =========================================================================
+networks:
+  ai-ml-test-network:
+    driver: bridge
+
+# =========================================================================
+# Volume Configuration
+# =========================================================================
+volumes:
+  test_chroma_data:
+    driver: local
+  test_processed_data:
+    driver: local

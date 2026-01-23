@@ -1,0 +1,2 @@
+# This file keeps the data/chunks_backup directory in version control
+# Backup JSON files of chunks and images are stored here but gitignored

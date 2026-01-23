@@ -18,8 +18,8 @@ import json
 BASE_DIR = Path(__file__).parent.parent
 sys.path.insert(0, str(BASE_DIR))
 
-from rag.retriever import MultimodalRetriever
-from rag.generator import RAGGenerator
+from rag.retrieve import MultimodalRetriever
+from rag.generate import RAGGenerator
 
 # Page config
 st.set_page_config(
@@ -111,16 +111,27 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-@st.cache_resource
 def load_retriever():
-    """Load retriever (cached)."""
-    return MultimodalRetriever()
+    """
+    Load retriever with per-session caching to prevent HNSW lock issues.
+    
+    ChromaDB HNSW indices can become locked if shared across requests.
+    Using session state ensures each session has a fresh retriever instance.
+    """
+    if 'retriever' not in st.session_state:
+        st.session_state.retriever = MultimodalRetriever()
+    return st.session_state.retriever
 
 
-@st.cache_resource
 def load_generator():
-    """Load generator (cached)."""
-    return RAGGenerator()
+    """
+    Load generator with per-session caching.
+    
+    Similar to retriever, uses session state to prevent state conflicts.
+    """
+    if 'generator' not in st.session_state:
+        st.session_state.generator = RAGGenerator()
+    return st.session_state.generator
 
 
 @st.cache_data
@@ -552,16 +563,6 @@ def main():
         st.title("⚙️ Settings")
         
         st.markdown("---")
-        st.markdown("### Retrieval Settings")
-        k_text = st.slider(
-            "Number of text chunks",
-            min_value=2,
-            max_value=5,
-            value=3,
-            help="How many text chunks to retrieve"
-        )
-        
-        st.markdown("---")
         st.markdown("### Display Settings")
         show_debug = st.checkbox(
             "Show Debug View",
@@ -593,6 +594,7 @@ def main():
     # Main query interface
     query = st.text_input(
         "Your Question:",
+        key="user_query",
         placeholder="e.g., Show the Transformer architecture",
         help="Ask about deep learning concepts, architectures, or methods"
     )
@@ -602,6 +604,8 @@ def main():
         submit = st.button("🔍 Ask", type="primary", width="stretch")
     with col2:
         if st.button("🗑️ Clear", width="stretch"):
+            # Clear all user input and results
+            st.session_state.clear()
             st.rerun()
     
     # Process query
@@ -611,11 +615,11 @@ def main():
             retriever = load_retriever()
             generator = load_generator()
             
-            # Retrieval
+            # Retrieval with static k_text (hidden from UI)
             with st.spinner("🔍 Retrieving relevant content..."):
                 text_chunks, verified_images = retriever.retrieve_with_verification(
                     query=query,
-                    k_text=k_text
+                    k_text=DEFAULT_K_TEXT
                 )
                 llm_input = retriever.prepare_for_llm(query, text_chunks, verified_images)
             
