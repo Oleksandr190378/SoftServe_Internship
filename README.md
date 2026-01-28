@@ -18,20 +18,7 @@ A production-ready **Retrieval-Augmented Generation (RAG)** system for learning 
 - ✅ **Grounded answers** - No hallucinations, all claims cited with [1][2][A][B]
 - ✅ **Production-ready** - Full evaluation, comprehensive documentation
 
-#### 📊 Evaluation Results
-| Metric | Target | Achieved | Status |
-|--------|--------|----------|--------|
-| Recall@5 | ≥70% | 95.0% | ✅ |
-| Image Hit Rate | ≥60% | 88.9% | ✅ |
-| Faithfulness | ≥80% | 90.5% | ✅ |
-| MRR | ≥0.70 | 1.000 | ✅ |
 
-#### 🚀 Quick Start
-```bash
-cd ai-ml-course-assistant
-pip install -r requirements.txt
-python ui/app.py  # Launch Streamlit interface
-```
 
 📖 **Full Documentation:** See [README.md](ai-ml-course-assistant/README.md) and [ARCHITECTURE.md](ai-ml-course-assistant/docs/ARCHITECTURE.md)
 
@@ -39,7 +26,7 @@ python ui/app.py  # Launch Streamlit interface
 
 ## 📅 Status
 
-- **Last Updated:** January 19, 2026
+- **Last Updated:** January 26, 2026
 - **Status:** ✅ Production Ready
 - **Phase:** D Complete - All evaluation targets exceeded
 - **Ready for:** Deployment, presentations, further development
