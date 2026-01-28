@@ -1,0 +1,247 @@
+{
+  "doc_id": "realpython_python-ai-neural-network",
+  "url": "https://realpython.com/python-ai-neural-network/",
+  "slug": "python-ai-neural-network",
+  "title": "Python AI: How to Build a Neural Network & Make Predictions",
+  "source_type": "realpython",
+  "downloaded_at": "2026-01-02T10:38:45.488611",
+  "content": {
+    "text": "Table of Contents\n\nWatch NowThis tutorial has a related video course created by the Real Python team. Watch it together with the written tutorial to deepen your understanding:Building a Neural Network & Making Predictions With Python AI\n\nIf you’re just starting out in the artificial intelligence (AI) world, then Python is a great language to learn since most of the tools are built using it.Deep learningis a technique used to make predictions using data, and it heavily relies onneural networks. Today, you’ll learn how to build a neural network from scratch.\n\nIn a production setting, you would use a deep learning framework likeTensorFloworPyTorchinstead of building your own neural network. That said, having some knowledge of how neural networks work is helpful because you can use it to better architect your deep learning models.\n\nIn this tutorial, you’ll learn:\n\nLet’s get started!\n\nFree Bonus:Click here to get access to a free NumPy Resources Guidethat points you to the best tutorials, videos, and books for improving your NumPy skills.\n\nIn basic terms, the goal of using AI is to make computers think as humans do. This may seem like something new, but the field was born in the 1950s.\n\nImagine that you need to write a Python program that uses AI tosolve a sudoku problem. A way to accomplish that is to writeconditional statementsand check the constraints to see if you can place a number in each position. Well, this Python script is already an application of AI because you programmed a computer to solve a problem!\n\nMachine learning (ML)anddeep learning (DL)are also approaches to solving problems. The difference between these techniques and a Python script is that ML and DL usetraining datainstead of hard-coded rules, but all of them can be used to solve problems using AI. In the next sections, you’ll learn more about what differentiates these two techniques.\n\nMachine learning is a technique in which you train the system to solve a problem instead of explicitly programming the rules. Getting back to the sudoku example in the previous section, to solve the problem using machine learning, you would gather data from solved sudoku games and train astatistical model.Statistical modelsare mathematically formalized ways to approximate the behavior of a phenomenon.\n\nA common machine learning task issupervised learning, in which you have a dataset with inputs and known outputs. The task is to use this dataset to train a model that predicts the correct outputs based on the inputs. The image below presents the workflow to train a model using supervised learning:\n\nThe combination of the training data with the machine learning algorithm creates the model. Then, with this model, you can make predictions for new data.\n\nNote:scikit-learnis a popular Python machine learning library that provides many supervised and unsupervised learning algorithms. To learn more about it, check outSplit Your Dataset With scikit-learn’s train_test_split().\n\nThe goal of supervised learning tasks is to make predictions for new, unseen data. To do that, you assume that this unseen data follows aprobability distributionsimilar to the distribution of the training dataset. If in the future this distribution changes, then you need to train your model again using the new training dataset.\n\nPrediction problems become harder when you use different kinds of data as inputs. The sudoku problem is relatively straightforward because you’re dealing directly with numbers. What if you want to train a model to predict the sentiment in a sentence? Or what if you have an image, and you want to know whether it depicts a cat?\n\nAnother name for input data isfeature, andfeature engineeringis the process of extracting features from raw data. When dealing with different kinds of data, you need to figure out ways to represent this data in order to extract meaningful information from it.\n\nAn example of a feature engineering technique islemmatization, in which you remove the inflection from words in a sentence. For example, inflected forms of the verb “watch,” like “watches,” “watching,” and “watched,” would be reduced to theirlemma, or base form: “watch.”\n\nIf you’re using arrays to store each word of a corpus, then by applying lemmatization, you end up with a less-sparse matrix. This can increase the performance of some machine learning algorithms. The following image presents the process of lemmatization and representation using abag-of-words model:\n\nFirst, the inflected form of every word is reduced to its lemma. Then, the number of occurrences of that word is computed. The result is an array containing the number of occurrences of every word in the text.\n\nDeep learning is a technique in which you let the neural network figure out by itself which features are important instead of applying feature engineering techniques. This means that, with deep learning, you can bypass the feature engineering process.\n\nNot having to deal with feature engineering is good because the process gets harder as the datasets become more complex. For example, how would you extract the data to predict the mood of a person given a picture of her face? With neural networks, you don’t need to worry about it because the networks can learn the features by themselves. In the next sections, you’ll dive deep into neural networks to better understand how they work.\n\nA neural network is a system that learns how to make predictions by following these steps:\n\nVectors,layers, andlinear regressionare some of the building blocks of neural networks. The data is stored as vectors, and with Python you store these vectors inarrays. Each layer transforms the data that comes from the previous layer. You can think of each layer as a feature engineering step, because each layer extracts some representation of the data that came previously.\n\nOne cool thing about neural network layers is that the same computations can extract information fromanykind of data. This means that it doesn’t matter if you’re using image data or text data. The process to extract meaningful information and train the deep learning model is the same for both scenarios.\n\nIn the image below, you can see an example of a network architecture with two layers:\n\nEach layer transforms the data that came from the previous layer by applying some mathematical operations.\n\nTraining a neural network is similar to the process of trial and error. Imagine you’re playing darts for the first time. In your first throw, you try to hit the central point of the dartboard. Usually, the first shot is just to get a sense of how the height and speed of your hand affect the result. If you see the dart is higher than the central point, then you adjust your hand to throw it a little lower, and so on.\n\nThese are the steps for trying to hit the center of a dartboard:\n\nNotice that you keep assessing the error by observing where the dart landed (step 2). You go on until you finally hit the center of the dartboard.\n\nWith neural networks, the process is very similar: you start with some randomweightsandbiasvectors, make a prediction, compare it to the desired output, and adjust the vectors to predict more accurately the next time. The process continues until the difference between the prediction and the correct targets is minimal.\n\nKnowing when to stop the training and what accuracy target to set is an important aspect of training neural networks, mainly because ofoverfitting and underfittingscenarios.\n\nWorking with neural networks consists of doing operations with vectors. You represent the vectors as multidimensional arrays. Vectors are useful in deep learning mainly because of one particular operation: thedot product. The dot product of two vectors tells you how similar they are in terms of direction and is scaled by the magnitude of the two vectors.\n\nThe main vectors inside a neural network are the weights and bias vectors. Loosely, what you want your neural network to do is to check if an input is similar to other inputs it’s already seen. If the new input is similar to previously seen inputs, then the outputs will also be similar. That’s how you get the result of a prediction.\n\nRegressionis used when you need to estimate the relationship between adependent variableand two or moreindependent variables.Linear regressionis a method applied when you approximate the relationship between the variables as linear. The method dates back to the nineteenth century and is the most popular regression method.\n\nNote:Alinearrelationship is one where there’s a direct relationship between an independent variable and a dependent variable.\n\nBy modeling the relationship between the variables as linear, you can express the dependent variable as aweighted sumof the independent variables. So, each independent variable will be multiplied by a vector calledweight. Besides the weights and the independent variables, you also add another vector: thebias. It sets the result when all the other independent variables are equal to zero.\n\nAs a real-world example of how to build a linear regression model, imagine you want to train a model to predict the price of houses based on the area and how old the house is. You decide to model this relationship using linear regression. The following code block shows how you can write a linear regression model for the stated problem in pseudocode:\n\nIn the above example, there are two weights:weights_areaandweights_age. The training process consists of adjusting the weights and the bias so the model can predict the correct price value. To accomplish that, you’ll need to compute the prediction error and update the weights accordingly.\n\nThese are the basics of how the neural network mechanism works. Now it’s time to see how to apply these concepts using Python.\n\nThe first step in building a neural network is generating an output from input data. You’ll do that by creating a weighted sum of the variables. The first thing you’ll need to do is represent the inputs with Python andNumPy.\n\nYou’ll use NumPy to represent the input vectors of the network as arrays. But before you use NumPy, it’s a good idea to play with the vectors in pure Python to better understand what’s going on.\n\nIn this first example, you have an input vector and the other two weight vectors. The goal is to find which of the weights is more similar to the input, taking into account the direction and the magnitude. This is how the vectors look if you plot them:\n\nweights_2is more similar to the input vector since it’s pointing in the same direction and the magnitude is also similar. So how do you figure out which vectors are similar using Python?\n\nFirst, you define the three vectors, one for the input and the other two for the weights. Then you compute how similarinput_vectorandweights_1are. To do that, you’ll apply thedot product. Since all the vectors are two-dimensional vectors, these are the steps to do it:\n\nYou can use anIPythonconsole or aJupyter Notebookto follow along. It’s a good practice to create a newvirtual environmentevery time you start a new Python project, so you should do that first.venvships with Python versions 3.3 and above, and it’s handy for creating a virtual environment:\n\nUsing the above commands, you first create the virtual environment, then you activate it. Now it’s time to install the IPython console usingpip. Since you’ll also need NumPy andMatplotlib, it’s a good idea install them too:\n\nNow you’re ready to start coding. This is the code for computing the dot product ofinput_vectorandweights_1:\n\nThe result of the dot product is2.1672. Now that you know how to compute the dot product, it’s time to usenp.dot()from NumPy. Here’s how to computedot_product_1usingnp.dot():\n\nnp.dot()does the same thing you did before, but now you just need to specify the two arrays as arguments. Now let’s compute the dot product ofinput_vectorandweights_2:\n\nThis time, the result is4.1259. As a different way of thinking about the dot product, you can treat the similarity between the vector coordinates as an on-off switch. If the multiplication result is0, then you’ll say that the coordinates arenotsimilar. If the result is something other than0, then you’ll say that theyaresimilar.\n\nThis way, you can view the dot product as a loose measurement of similarity between the vectors. Every time the multiplication result is0, the final dot product will have a lower result. Getting back to the vectors of the example, since the dot product ofinput_vectorandweights_2is4.1259, and4.1259is greater than2.1672, it means thatinput_vectoris more similar toweights_2. You’ll use this same mechanism in your neural network.\n\nNote:Click the prompt (>>>) at the top right of each code block if you need to copy and paste it.\n\nIn this tutorial, you’ll train a model to make predictions that have only two possible outcomes. The output result can be either0or1. This is aclassification problem, a subset of supervised learning problems in which you have a dataset with the inputs and the known targets. These are the inputs and the outputs of the dataset:\n\nThetargetis the variable you want to predict. In this example, you’re dealing with a dataset that consists of numbers. This isn’t common in a real production scenario. Usually, when there’s a need for a deep learning model, the data is presented in files, such as images or text.\n\nSince this is your very first neural network, you’ll keep things straightforward and build a network with only two layers. So far, you’ve seen that the only two operations used inside the neural network were the dot product and a sum. Both arelinear operations.\n\nIf you add more layers but keep using only linear operations, then adding more layers would have no effect because each layer will always have some correlation with the input of the previous layer. This implies that, for a network with multiple layers, there would always be a network with fewer layers that predicts the same results.\n\nWhat you want is to find an operation that makes the middle layers sometimes correlate with an input and sometimes not correlate.\n\nYou can achieve this behavior by using nonlinear functions. These nonlinear functions are calledactivation functions.  There are many types of activation functions. TheReLU (rectified linear unit), for example, is a function that converts all negative numbers to zero. This means that the network can “turn off” a weight if it’s negative, adding nonlinearity.\n\nThe network you’re building will use thesigmoid activation function. You’ll use it in the last layer,layer_2. The only two possible outputs in the dataset are0and1, and the sigmoid function limits the output to a range between0and1. This is the formula to express the sigmoid function:\n\nTheeis a mathematical constant calledEuler’s number, and you can usenp.exp(x)to calculateeˣ.\n\nProbability functions give you the probability of occurrence for possible outcomes of an event. The only two possible outputs of the dataset are0and1, and theBernoulli distributionis a distribution that has two possible outcomes as well. The sigmoid function is a good choice if your problem follows the Bernoulli distribution, sothat’s why you’re using itin the last layer of your neural network.\n\nSince the function limits the output to a range of0to1, you’ll use it to predict probabilities. If the output is greater than0.5, then you’ll say the prediction is1. If it’s below0.5, then you’ll say the prediction is0. This is the flow of the computations inside the network you’re building:\n\nThe yellow hexagons represent the functions, and the blue rectangles represent the intermediate results. Now it’s time to turn all this knowledge into code. You’ll also need to wrap the vectors with NumPy arrays. This is the code that applies the functions presented in the image above:\n\nThe raw prediction result is0.79, which is higher than0.5, so the output is1. The network made a correct prediction. Now try it with another input vector,np.array([2, 1.5]). The correct result for this input is0. You’ll only need to change theinput_vectorvariable since all the other parameters remain the same:\n\nThis time, the network made a wrong prediction. The result should be less than0.5since the target for this input is0, but the raw result was0.87. It made a wrong guess, but how bad was the mistake? The next step is to find a way to assess that.\n\nIn the process of training the neural network, you first assess the error and then adjust the weights accordingly. To adjust the weights, you’ll use thegradient descentandbackpropagationalgorithms. Gradient descent is applied to find the direction and the rate to update the parameters.\n\nBefore making any changes in the network, you need to compute the error. That’s what you’ll do in the next section.\n\nTo understand the magnitude of the error, you need to choose a way to measure it. The function used to measure the error is called thecost function, orloss function. In this tutorial, you’ll use themean squared error (MSE)as your cost function. You compute the MSE in two steps:\n\nThe network can make a mistake by outputting a value that’s higher or lower than the correct value. Since the MSE is thesquareddifference between the prediction and the correct result, with this metric you’ll always end up with a positive value.\n\nThis is the complete expression to compute the error for the last previous prediction:\n\nIn the example above, the error is0.75. One implication of multiplying the difference by itself is that bigger errors have an even larger impact, and smaller errors keep getting smaller as they decrease.\n\nThe goal is to change the weights and bias variables so you can reduce the error. To understand how this works, you’ll change only the weights variable and leave the bias fixed for now. You can also get rid of the sigmoid function and use only the result oflayer_1. All that’s left is to figure out how you can modify the weights so that the error goes down.\n\nYou compute the MSE by doingerror = np.square(prediction - target). If you treat(prediction - target)as a single variablex, then you haveerror = np.square(x), which is aquadratic function. Here’s how the function looks if you plot it:\n\nThe error is given by the y-axis. If you’re in pointAand want to reduce the error toward 0, then you need to bring thexvalue down. On the other hand, if you’re in pointBand want to reduce the error, then you need to bring thexvalue up. To know which direction you should go to reduce the error, you’ll use thederivative. A derivativeexplains exactly how a pattern will change.\n\nAnother word for the derivative isgradient.Gradient descentis the name of the algorithm used to find the direction and the rate to update the network parameters.\n\nNote:To learn more about the math behind gradient descent, check outStochastic Gradient Descent Algorithm With Python and NumPy.\n\nIn this tutorial, you won’t focus on the theory behind derivatives, so you’ll simply apply thederivative rulesfor each function you’ll encounter. Thepower rulestates that the derivative ofxⁿisnx⁽ⁿ⁻¹⁾. So the derivative ofnp.square(x)is2 * x, and the derivative ofxis1.\n\nRemember that the error expression iserror = np.square(prediction - target). When you treat(prediction - target)as a single variablex, the derivative of the error is2 * x. By taking the derivative of this function, you want to know in what direction should you changexto bring the result oferrorto zero, thereby reducing the error.\n\nWhen it comes to your neural network, the derivative will tell you the direction you should take to update the weights variable. If it’s a positive number, then you predicted too high, and you need to decrease the weights. If it’s a negative number, then you predicted too low, and you need to increase the weights.\n\nNow it’s time to write the code to figure out how to updateweights_1for the previous wrong prediction. If the mean squared error is0.75, then should you increase or decrease the weights? Since the derivative is2 * x, you just need to multiply the difference between the prediction and the target by2:\n\nThe result is1.74, a positive number, so you need to decrease the weights. You do that by subtracting the derivative result of the weights vector. Now you can updateweights_1accordingly and predict again to see how it affects the prediction result:\n\nThe error dropped down to almost0! Beautiful, right? In this example, the derivative result was small, but there are some cases where the derivative result is too high. Take the image of the quadratic function as an example. High increments aren’t ideal because you could keep going from pointAstraight to pointB, never getting close to zero. To cope with that, you update the weights with a fraction of the derivative result.\n\nTo define a fraction for updating the weights, you use thealphaparameter, also called thelearning rate. If you decrease the learning rate, then the increments are smaller. If you increase it, then the steps are higher. How do you know what’s the best learning rate value? By making a guess and experimenting with it.\n\nNote:Traditional default learning rate values are0.1,0.01, and0.001.\n\nIf you take the new weights and make a prediction with the first input vector, then you’ll see that now it makes a wrong prediction for that one. If your neural network makes a correct prediction for every instance in your training set, then you probably have anoverfitted model, where the model simply remembers how to classify the examples instead of learning to notice features in the data.\n\nThere are techniques to avoid that, includingregularizationthestochastic gradient descent. In this tutorial you’ll use theonline stochastic gradient descent.\n\nNow that you know how to compute the error and how to adjust the weights accordingly, it’s time to get back continue building your neural network.\n\nIn your neural network, you need to update both the weightsandthe bias vectors. The function you’re using to measure the error depends on two independent variables, the weights and the bias. Since the weights and the bias areindependent variables, you can change and adjust them to get the result you want.\n\nThe network you’re building has two layers, and since each layer has its own functions, you’re dealing with afunction composition. This means that the error function is stillnp.square(x), but nowxis the result of another function.\n\nTo restate the problem, now you want to know how to changeweights_1andbiasto reduce the error. You already saw that you can use derivatives for this, but instead of a function with only a sum inside, now you have a function that produces its result using other functions.\n\nSince now you have this function composition, to take the derivative of the error concerning the parameters, you’ll need to use thechain rulefrom calculus. With the chain rule, you take the partial derivatives of each function, evaluate them, and multiply all the partial derivatives to get the derivative you want.\n\nNow you can start updating the weights. You want to know how to change the weights to decrease the error. This implies that you need to compute the derivative of the error with respect to weights. Since the error is computed by combining different functions, you need to take the partial derivatives of these functions.\n\nHere’s a visual representation of how you apply the chain rule to find the derivative of the error with respect to the weights:\n\nThe bold red arrow shows the derivative you want,derror_dweights. You’ll start from the red hexagon, taking the inverse path of making a prediction and computing thepartial derivativesat each function.\n\nIn the image above, each function is represented by the yellow hexagons, and the partial derivatives are represented by the gray arrows on the left. Applying the chain rule, the value ofderror_dweightswill be the following:\n\nTo calculate the derivative, you multiply all the partial derivatives that follow the path from the error hexagon (the red one) to the hexagon where you find the weights (the leftmost green one).\n\nYou can say that the derivative ofy = f(x)is the derivative offwith respect tox. Using this nomenclature, forderror_dprediction, you want to know the derivative of the function that computes the error with respect to the prediction value.\n\nThis reverse path is called abackward pass. In each backward pass, you compute the partial derivatives of each function, substitute the variables by their values, and finally multiply everything.\n\nThis “take the partial derivatives, evaluate, and multiply” part is how you apply thechain rule. This algorithm to update the neural network parameters is calledbackpropagation.\n\nIn this section, you’ll walk through the backpropagation process step by step, starting with how you update the bias. You want to take the derivative of the error function with respect to the bias,derror_dbias. Then you’ll keep going backward, taking the partial derivatives until you find thebiasvariable.\n\nSince you are starting from the end and going backward, you first need to take the partial derivative of the error with respect to the prediction. That’s thederror_dpredictionin the image below:\n\nThe function that produces the error is a square function, and the derivative of this function is2 * x, as you saw earlier. You applied the first partial derivative (derror_dprediction) and still didn’t get to the bias, so you need to take another step back and take the derivative of the prediction with respect to the previous layer,dprediction_dlayer1.\n\nThe prediction is the result of the sigmoid function. You can take the derivative of the sigmoid function by multiplyingsigmoid(x)and1 - sigmoid(x). This derivative formula is very handy because you can usethe sigmoid result that has already been computedto compute the derivative of it. You then take this partial derivative and continue going backward.\n\nNow you’ll take the derivative oflayer_1with respect to the bias. There it is—you finally got to it! Thebiasvariable is an independent variable, so the result after applying the power rule is1. Cool, now that you’ve completed this backward pass, you can put everything together and computederror_dbias:\n\nTo update the weights, you follow the same process, going backward and taking the partial derivatives until you get to the weights variable. Since you’ve already computed some of the partial derivatives, you’ll just need to computedlayer1_dweights. The derivative of the dot product is the derivative of the first vector multiplied by the second vector, plus the derivative of the second vector multiplied by the first vector.\n\nNow you know how to write the expressions to update both the weights and the bias. It’s time to create aclassfor the neural network. Classes are the main building blocks ofobject-oriented programming (OOP). TheNeuralNetworkclass generates random start values for the weights and bias variables.\n\nWhen instantiating aNeuralNetworkobject, you need to pass thelearning_rateparameter. You’ll usepredict()to make a prediction. The methods_compute_derivatives()and_update_parameters()have the computations you learned in this section. This is the finalNeuralNetworkclass:\n\nThere you have it: That’s the code of your first neural network. Congratulations! This code just puts together all the pieces you’ve seen so far. If you want to make a prediction, first you create an instance ofNeuralNetwork(), and then you call.predict():\n\nThe above code makes a prediction, but now you need to learn how to train the network. The goal is to make the networkgeneralizeover the training dataset. This means that you want it to adapt to new, unseen data that follow the same probability distribution as the training dataset. That’s what you’ll do in the next section.\n\nYou’ve already adjusted the weights and the bias for one data instance, but the goal is to make the network generalize over an entire dataset.Stochastic gradient descentis a technique in which, at every iteration, the model makes a prediction based on a randomly selected piece of training data, calculates the error, and updates the parameters.\n\nNow it’s time to create thetrain()method of yourNeuralNetworkclass. You’ll save the error over all data points every 100 iterations because you want to plot a chart showing how this metric changes as the number of iterations increases. This is the finaltrain()method of your neural network:\n\nThere’s a lot going on in the above code block, so here’s a line-by-line breakdown:\n\nLine 8picks a random instance from the dataset.\n\nLines 14 to 16calculate the partial derivatives and return the derivatives for the bias and the weights. They use_compute_gradients(), which you defined earlier.\n\nLine 18updates the bias and the weights using_update_parameters(), which you defined in the previous code block.\n\nLine 21checks if the current iteration index is a multiple of100. You do this to observe how the error changes every100iterations.\n\nLine 24starts the loop that goes through all the data instances.\n\nLine 28computes thepredictionresult.\n\nLine 29computes theerrorfor every instance.\n\nLine 31is where you accumulate the sum of the errors using thecumulative_errorvariable. You do this because you want to plot a point with the error forallthe data instances. Then, on line 32, you append theerrortocumulative_errors, the array that stores the errors. You’ll use this array to plot the graph.\n\nIn short, you pick a random instance from the dataset, compute the gradients, and update the weights and the bias. You also compute the cumulative error every 100 iterations and save those results in an array. You’ll plot this array to visualize how the error changes during the training process.\n\nNote:If you’re running the code in a Jupyter Notebook, then you need to restart the kernel after addingtrain()to theNeuralNetworkclass.\n\nTo keep things less complicated, you’ll use a dataset with just eight instances, theinput_vectorsarray. Now you can calltrain()and use Matplotlib to plot the cumulative error for each iteration:\n\nYou instantiate theNeuralNetworkclass again and calltrain()using theinput_vectorsand thetargetvalues. You specify that it should run10000times. This is the graph showing the error for an instance of a neural network:\n\nThe overall error is decreasing, which is what you want. The image is generated in the same directory where you’re running IPython. After the largest decrease, the error keeps going up and down quickly from one interaction to another. That’s because the dataset israndomand very small, so it’s hard for the neural network to extract any features.\n\nBut it’s not a good idea to evaluate the performance using this metric because you’re evaluating it using data instances that the network already saw. This can lead tooverfitting, when the model fits the training dataset so well that it doesn’t generalize to new data.\n\nThe dataset in this tutorial was kept small for learning purposes. Usually, deep learning models need a large amount of data because the datasets are more complex and have a lot of nuances.\n\nSince these datasets have more complex information, using only one or two layers isn’t enough. That’s why deep learning models are called “deep.” They usually have a large number of layers.\n\nBy adding more layers and using activation functions, you increase the network’s expressive power and can make very high-level predictions. An example of these types of predictions isface recognition, such as when you take a photo of your face with your phone, and the phone unlocks if it recognizes the image as you.\n\nCongratulations! Today, you built a neural network from scratch using NumPy. With this knowledge, you’re ready to dive deeper into the world of artificial intelligence in Python.\n\nIn this tutorial, you learned:\n\nThe process of training a neural network mainly consists of applying operations to vectors. Today, you did it from scratch using only NumPy as a dependency. This isn’t recommended in a production setting because the whole process can be unproductive and error-prone. That’s one of the reasons why deep learning frameworks likeKeras,PyTorch, and TensorFloware so popular.\n\nFor additional information on topics covered in this tutorial, check out these resources:\n\nWatch NowThis tutorial has a related video course created by the Real Python team. Watch it together with the written tutorial to deepen your understanding:Building a Neural Network & Making Predictions With Python AI",
+    "structure": [
+      {
+        "level": "h2",
+        "text": "Artificial Intelligence Overview"
+      },
+      {
+        "level": "h3",
+        "text": "Machine Learning"
+      },
+      {
+        "level": "h3",
+        "text": "Feature Engineering"
+      },
+      {
+        "level": "h3",
+        "text": "Deep Learning"
+      },
+      {
+        "level": "h2",
+        "text": "Neural Networks: Main Concepts"
+      },
+      {
+        "level": "h3",
+        "text": "The Process to Train a Neural Network"
+      },
+      {
+        "level": "h3",
+        "text": "Vectors and Weights"
+      },
+      {
+        "level": "h3",
+        "text": "The Linear Regression Model"
+      },
+      {
+        "level": "h2",
+        "text": "Python AI: Starting to Build Your First Neural Network"
+      },
+      {
+        "level": "h3",
+        "text": "Wrapping the Inputs of the Neural Network With NumPy"
+      },
+      {
+        "level": "h3",
+        "text": "Making Your First Prediction"
+      },
+      {
+        "level": "h2",
+        "text": "Train Your First Neural Network"
+      },
+      {
+        "level": "h3",
+        "text": "Computing the Prediction Error"
+      },
+      {
+        "level": "h3",
+        "text": "Understanding How to Reduce the Error"
+      },
+      {
+        "level": "h3",
+        "text": "Applying the Chain Rule"
+      },
+      {
+        "level": "h3",
+        "text": "Adjusting the Parameters With Backpropagation"
+      },
+      {
+        "level": "h3",
+        "text": "Creating the Neural Network Class"
+      },
+      {
+        "level": "h3",
+        "text": "Training the Network With More Data"
+      },
+      {
+        "level": "h3",
+        "text": "Adding More Layers to the Neural Network"
+      },
+      {
+        "level": "h2",
+        "text": "Conclusion"
+      },
+      {
+        "level": "h2",
+        "text": "Further Reading"
+      }
+    ],
+    "code_blocks": [
+      {
+        "index": 1,
+        "language": "python",
+        "code": "price = (weights_area * area) + (weights_age * age) + bias"
+      },
+      {
+        "index": 2,
+        "language": "python",
+        "code": "$python-mvenv~/.my-env$source~/.my-env/bin/activate"
+      },
+      {
+        "index": 3,
+        "language": "python",
+        "code": "(my-env)$python-mpipinstallipythonnumpymatplotlib(my-env)$ipython"
+      },
+      {
+        "index": 4,
+        "language": "python",
+        "code": "In [1]:input_vector=[1.72,1.23]In [2]:weights_1=[1.26,0]In [3]:weights_2=[2.17,0.32]In [4]:# Computing the dot product of input_vector and weights_1In [5]:first_indexes_mult=input_vector[0]*weights_1[0]In [6]:second_indexes_mult=input_vector[1]*weights_1[1]In [7]:dot_product_1=first_indexes_mult+second_indexes_multIn [8]:print(f\"The dot product is:{dot_product_1}\")Out[8]:The dot product is: 2.1672"
+      },
+      {
+        "index": 5,
+        "language": "python",
+        "code": "In [9]:importnumpyasnpIn [10]:dot_product_1=np.dot(input_vector,weights_1)In [11]:print(f\"The dot product is:{dot_product_1}\")Out[11]:The dot product is: 2.1672"
+      },
+      {
+        "index": 6,
+        "language": "python",
+        "code": "In [10]:dot_product_2=np.dot(input_vector,weights_2)In [11]:print(f\"The dot product is:{dot_product_2}\")Out[11]:The dot product is: 4.1259"
+      },
+      {
+        "index": 7,
+        "language": "python",
+        "code": "In [12]:# Wrapping the vectors in NumPy arraysIn [13]:input_vector=np.array([1.66,1.56])In [14]:weights_1=np.array([1.45,-0.66])In [15]:bias=np.array([0.0])In [16]:defsigmoid(x):...:return1/(1+np.exp(-x))In [17]:defmake_prediction(input_vector,weights,bias):...:layer_1=np.dot(input_vector,weights)+bias...:layer_2=sigmoid(layer_1)...:returnlayer_2In [18]:prediction=make_prediction(input_vector,weights_1,bias)In [19]:print(f\"The prediction result is:{prediction}\")Out[19]:The prediction result is: [0.7985731]"
+      },
+      {
+        "index": 8,
+        "language": "python",
+        "code": "In [20]:# Changing the value of input_vectorIn [21]:input_vector=np.array([2,1.5])In [22]:prediction=make_prediction(input_vector,weights_1,bias)In [23]:print(f\"The prediction result is:{prediction}\")Out[23]:The prediction result is: [0.87101915]"
+      },
+      {
+        "index": 9,
+        "language": "python",
+        "code": "In [24]:target=0In [25]:mse=np.square(prediction-target)In [26]:print(f\"Prediction:{prediction}; Error:{mse}\")Out[26]:Prediction: [0.87101915]; Error: [0.7586743596667225]"
+      },
+      {
+        "index": 10,
+        "language": "python",
+        "code": "In [27]:derivative=2*(prediction-target)In [28]:print(f\"The derivative is{derivative}\")Out[28]:The derivative is: [1.7420383]"
+      },
+      {
+        "index": 11,
+        "language": "python",
+        "code": "In [29]:# Updating the weightsIn [30]:weights_1=weights_1-derivativeIn [31]:prediction=make_prediction(input_vector,weights_1,bias)In [32]:error=(prediction-target)**2In [33]:print(f\"Prediction:{prediction}; Error:{error}\")Out[33]:Prediction: [0.01496248]; Error: [0.00022388]"
+      },
+      {
+        "index": 12,
+        "language": "python",
+        "code": "derror_dweights=(derror_dprediction*dprediction_dlayer1*dlayer1_dweights)"
+      },
+      {
+        "index": 13,
+        "language": "python",
+        "code": "In [36]:defsigmoid_deriv(x):...:returnsigmoid(x)*(1-sigmoid(x))In [37]:derror_dprediction=2*(prediction-target)In [38]:layer_1=np.dot(input_vector,weights_1)+biasIn [39]:dprediction_dlayer1=sigmoid_deriv(layer_1)In [40]:dlayer1_dbias=1In [41]:derror_dbias=(...:derror_dprediction*dprediction_dlayer1*dlayer1_dbias...:)"
+      },
+      {
+        "index": 14,
+        "language": "python",
+        "code": "classNeuralNetwork:def__init__(self,learning_rate):self.weights=np.array([np.random.randn(),np.random.randn()])self.bias=np.random.randn()self.learning_rate=learning_ratedef_sigmoid(self,x):return1/(1+np.exp(-x))def_sigmoid_deriv(self,x):returnself._sigmoid(x)*(1-self._sigmoid(x))defpredict(self,input_vector):layer_1=np.dot(input_vector,self.weights)+self.biaslayer_2=self._sigmoid(layer_1)prediction=layer_2returnpredictiondef_compute_gradients(self,input_vector,target):layer_1=np.dot(input_vector,self.weights)+self.biaslayer_2=self._sigmoid(layer_1)prediction=layer_2derror_dprediction=2*(prediction-target)dprediction_dlayer1=self._sigmoid_deriv(layer_1)dlayer1_dbias=1dlayer1_dweights=(0*self.weights)+(1*input_vector)derror_dbias=(derror_dprediction*dprediction_dlayer1*dlayer1_dbias)derror_dweights=(derror_dprediction*dprediction_dlayer1*dlayer1_dweights)returnderror_dbias,derror_dweightsdef_update_parameters(self,derror_dbias,derror_dweights):self.bias=self.bias-(derror_dbias*self.learning_rate)self.weights=self.weights-(derror_dweights*self.learning_rate)"
+      },
+      {
+        "index": 15,
+        "language": "python",
+        "code": "In [42]:learning_rate=0.1In [43]:neural_network=NeuralNetwork(learning_rate)In [44]:neural_network.predict(input_vector)Out[44]:array([0.79412963])"
+      },
+      {
+        "index": 16,
+        "language": "python",
+        "code": "1classNeuralNetwork:2# ...34deftrain(self,input_vectors,targets,iterations):5cumulative_errors=[]6forcurrent_iterationinrange(iterations):7# Pick a data instance at random8random_data_index=np.random.randint(len(input_vectors))910input_vector=input_vectors[random_data_index]11target=targets[random_data_index]1213# Compute the gradients and update the weights14derror_dbias,derror_dweights=self._compute_gradients(15input_vector,target16)1718self._update_parameters(derror_dbias,derror_dweights)1920# Measure the cumulative error for all the instances21ifcurrent_iteration%100==0:22cumulative_error=023# Loop through all the instances to measure the error24fordata_instance_indexinrange(len(input_vectors)):25data_point=input_vectors[data_instance_index]26target=targets[data_instance_index]2728prediction=self.predict(data_point)29error=np.square(prediction-target)3031cumulative_error=cumulative_error+error32cumulative_errors.append(cumulative_error)3334returncumulative_errors"
+      },
+      {
+        "index": 17,
+        "language": "python",
+        "code": "In [45]:# Paste the NeuralNetwork class code here...:# (and don't forget to add the train method to the class)In [46]:importmatplotlib.pyplotaspltIn [47]:input_vectors=np.array(...:[...:[3,1.5],...:[2,1],...:[4,1.5],...:[3,4],...:[3.5,0.5],...:[2,0.5],...:[5.5,1],...:[1,1],...:]...:)In [48]:targets=np.array([0,1,0,1,0,1,1,0])In [49]:learning_rate=0.1In [50]:neural_network=NeuralNetwork(learning_rate)In [51]:training_error=neural_network.train(input_vectors,targets,10000)In [52]:plt.plot(training_error)In [53]:plt.xlabel(\"Iterations\")In [54]:plt.ylabel(\"Error for all training instances\")In [54]:plt.savefig(\"cumulative_error.png\")"
+      }
+    ],
+    "images": [
+      {
+        "index": 1,
+        "url": "https://files.realpython.com/media/ML_workflow.8620ebb656aa.png",
+        "alt_text": "Supervised Learning Workflow"
+      },
+      {
+        "index": 2,
+        "url": "https://files.realpython.com/media/Features_from_text.9296775db229.png",
+        "alt_text": "Feature engineering from text to numeric array"
+      },
+      {
+        "index": 3,
+        "url": "https://files.realpython.com/media/neural_network_layers.c8fe82979288.png",
+        "alt_text": "Diagram showing a Neural Network with two layers"
+      },
+      {
+        "index": 4,
+        "url": "https://files.realpython.com/media/infographic.3276fe49eff4.png",
+        "alt_text": "The steps to throwing dart"
+      },
+      {
+        "index": 5,
+        "url": "https://files.realpython.com/media/three_vectors_2d.9d220456ff49.png",
+        "alt_text": "Three vectors in a cartesian coordinate plane"
+      },
+      {
+        "index": 6,
+        "url": "https://files.realpython.com/media/sigmoid_function.f966c820f8c3.png",
+        "alt_text": "Sigmoid function formula"
+      },
+      {
+        "index": 7,
+        "url": "https://files.realpython.com/media/network_architecture.406cfcc68417.png",
+        "alt_text": "The architecture of a neural network with two layers"
+      },
+      {
+        "index": 8,
+        "url": "https://files.realpython.com/media/quatratic_function.002729dea332.png",
+        "alt_text": "A plot of a quadratic function with two dots"
+      },
+      {
+        "index": 9,
+        "url": "https://files.realpython.com/media/partial_derivative_weights_2.c792633559c3.png",
+        "alt_text": "A diagram showing the partial derivatives inside a Neural Network"
+      },
+      {
+        "index": 10,
+        "url": "https://files.realpython.com/media/partial_derivative_bias_2.177c16a60b9d.png",
+        "alt_text": "A diagram showing the partial derivatives to calculate how to change the bias"
+      },
+      {
+        "index": 11,
+        "url": "https://files.realpython.com/media/cumulative_error.93469c3cd4e3.png",
+        "alt_text": "Line graph showing the cumulative neural network error decreasing"
+      }
+    ]
+  },
+  "stats": {
+    "text_length": 32466,
+    "code_blocks": 17,
+    "images": 11,
+    "headings": 21
+  }
+}

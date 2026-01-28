@@ -453,7 +453,7 @@ class EmbedStage(ProcessingStage):
             client=client
         )
         
-        # Store in context for Stage 5
+        # Store in context 
         context["chunks_with_embeddings"] = embed_result["chunks_with_embeddings"]
         context["images_with_embeddings"] = embed_result["images_with_embeddings"]
         
@@ -514,7 +514,7 @@ def process_document(
     Process a single document through all stages using Stage classes.
     
     Args:
-        doc_id: Document identifier (PDF filename without extension)
+        doc_id: Document identifier ( filename without extension)
         force: If True, reprocess even if already completed
         use_vlm: If True, use Vision-LM for image captions (costs API calls)
     
@@ -708,10 +708,6 @@ def show_status():
             error = doc.get("error", "Unknown error")
             logging.info(f"  - {doc['doc_id']}: {error}")
 
-
-# ============================================================================
-# CLI
-# ============================================================================
 
 def main():
     # Validate environment before any processing

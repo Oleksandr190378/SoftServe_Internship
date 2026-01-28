@@ -113,7 +113,7 @@ st.markdown("""
 
 def load_retriever():
     """
-    Load retriever with per-session caching to prevent HNSW lock issues.
+    Load retriever  to prevent HNSW lock issues.
     
     ChromaDB HNSW indices can become locked if shared across requests.
     Using session state ensures each session has a fresh retriever instance.
@@ -125,7 +125,7 @@ def load_retriever():
 
 def load_generator():
     """
-    Load generator with per-session caching.
+    Load generator.
     
     Similar to retriever, uses session state to prevent state conflicts.
     """
@@ -164,8 +164,7 @@ def load_images_metadata():
 
 def _extract_paper_id(image_id: str) -> str:
     """Extract paper_id from image_id by removing suffix patterns.
-    
-    Single Responsibility: Pattern matching and extraction.
+       Pattern matching and extraction.
     
     Args:
         image_id: Full image ID with suffix
@@ -188,8 +187,6 @@ def _extract_paper_id(image_id: str) -> str:
 
 def _try_image_path_variants(base_dir: Path, paper_id: str, image_id: str) -> Path:
     """Try multiple path variants to find image file.
-    
-    Single Responsibility: File system path resolution.
     
     Priority:
     1. paper_id subfolder with PNG
@@ -270,9 +267,7 @@ def get_confidence_badge_html(confidence: str, similarity: float) -> str:
 
 def _filter_cited_images(images: list, cited_image_ids: list) -> list:
     """Filter images to only those that were cited, preserving original indices.
-    
-    Single Responsibility: Data filtering while preserving ordering.
-    
+
     Args:
         images: All retrieved images
         cited_image_ids: List of cited image IDs
@@ -291,10 +286,8 @@ def _filter_cited_images(images: list, cited_image_ids: list) -> list:
 
 
 def _render_inline_image(img_data: dict, original_index: int, image_id: str):
-    """Render single inline image with metadata.
-    
-    Single Responsibility: Image rendering.
-    
+    """
+        Render single inline image with metadata.
     Args:
         img_data: Image metadata dictionary
         original_index: Original image position in full list (for correct labeling)
@@ -335,9 +328,8 @@ def _render_inline_image(img_data: dict, original_index: int, image_id: str):
 
 
 def _render_citations_summary(cited_chunks: list, cited_images: list):
-    """Render citations summary metrics.
-    
-    Single Responsibility: Summary display.
+    """
+    Render citations summary metrics.
     
     Args:
         cited_chunks: List of cited chunk IDs
@@ -383,7 +375,7 @@ def display_answer_section(result: dict, llm_input: dict = None):
         st.markdown("---")
         st.markdown("#### 🖼️ Referenced Images")
         
-        # Filter cited images using helper (SRP) - now includes original indices
+        # Filter cited images using helper  - now includes original indices
         cited_imgs = _filter_cited_images(llm_input['images'], result['cited_images'])
         
         # Display in grid (2 columns for better visibility)
@@ -573,11 +565,13 @@ def main():
         st.markdown("---")
         st.markdown("### Sample Queries")
         st.markdown("""
-        - `show encoder decoder architecture`
+        - `show encoder decoder architecture in transformers`
         - `explain residual connections in ResNet`
         - `what is attention mechanism`
-        - `compare VGG and ResNet`
-        - `how does multi-head attention work`
+        - `what is activation function in neural network`
+        - `how does multi-head -head attention work`
+        - 'what is vector database'
+        - 'What is the difference between word embeddings and text embeddings?'                        
         """)
         
         st.markdown("---")

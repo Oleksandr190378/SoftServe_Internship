@@ -199,7 +199,7 @@ class RetrievalEvaluator:
     
     def evaluate_query(self, query_data: dict, k_values: List[int] = [3, 5, 10]) -> QueryMetrics:
         """
-        Orchestrate single query evaluation (refactored for SRP).
+        Orchestrate single query evaluation .
         
         Args:
             query_data: Ground truth query data

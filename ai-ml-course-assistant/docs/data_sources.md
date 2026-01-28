@@ -1,321 +1,235 @@
 # Data Sources Documentation
 
-This document provides detailed information about all data sources for the AI/ML Course Assistant.
+This document describes the three data sources used in the AI/ML Course Assistant.
 
 ---
 
 ## 📚 Overview
 
-**Total Target:**
-- 75-120 documents
-- 150-400 images (diagrams, architectures, formulas)
+The system ingests content from three complementary sources to provide comprehensive AI/ML knowledge:
+
+- **arXiv**: Academic papers with research depth and mathematical rigor
+- **RealPython**: Practical tutorials with working code examples  
+- **Medium/TowardsDataScience**: Industry insights and best practices
+
+**Current Dataset:** 54 documents, 369 text chunks, 142 images
 
 ---
 
-## 1. arXiv Papers (Primary Source)
+## 1. arXiv Papers (Academic Source)
 
 ### Description
-Academic papers from arXiv.org, focusing on Machine Learning and AI topics.
+Research papers from arXiv.org focusing on Machine Learning, AI, and Computer Vision.
 
-### Access Method
-- **API:** arXiv API (Python library: `arxiv`)
-- **License:** Open access (various, mostly permissive)
-- **Cost:** Free
+### Categories
+- `cs.LG` - Machine Learning
+- `cs.AI` - Artificial Intelligence  
+- `cs.CV` - Computer Vision
 
-### Categories to Scrape
-| Category | Description | Expected Papers |
-|----------|-------------|-----------------|
-| `cs.LG` | Machine Learning | 20-25 papers |
-| `cs.AI` | Artificial Intelligence | 10-15 papers |
-| `cs.CV` | Computer Vision | 10-15 papers |
-| `cs.NE` | Neural Networks (optional) | 5-10 papers |
-
-### Sample Papers to Include
-1. "Attention Is All You Need" (Transformers)
-2. "Deep Residual Learning for Image Recognition" (ResNet)
-3. "Adam: A Method for Stochastic Optimization"
-4. "Batch Normalization: Accelerating Deep Network Training"
-5. "Dropout: A Simple Way to Prevent Neural Networks from Overfitting"
-6. Recent survey papers on deep learning
-
-### Content Types
-- ✅ Text: Abstracts, methodology, results
-- ✅ Images: Architecture diagrams, algorithm flowcharts, training curves, formula images
+### Content Characteristics
+- ✅ **Text:** Abstract, methodology, experimental results, mathematical formulations
+- ✅ **Images:** Architecture diagrams, training curves, algorithm flowcharts, mathematical formulas
+- ✅ **License:** Open access (various permissive licenses)
 
 ### Download Script
-Location: `ingest/download_arxiv.py`
+**Location:** `ingest/download_arxiv.py`
 
-**Example usage:**
-```python
-import arxiv
-
-# Search for papers
-search = arxiv.Search(
-    query="cat:cs.LG AND (neural network OR deep learning)",
-    max_results=50,
-    sort_by=arxiv.SortCriterion.Relevance
-)
-
-for paper in search.results():
-    paper.download_pdf(dirpath="./data/raw/papers")
+**Usage:**
+```bash
+python download_arxiv.py --num-papers 10 --categories cs.LG,cs.AI
 ```
 
----
+**Key Features:**
+- Downloads PDFs directly from arXiv API
+- Extracts metadata (title, authors, abstract, categories)
+- Saves to `data/raw/arxiv/`
 
-## 2. Technical Blog Articles (Secondary Source)
-
-### Description
-Tutorial articles and explanations from popular ML/AI blogs.
-
-### Target Websites
-| Website | Topics | Expected Articles |
-|---------|--------|-------------------|
-| **Towards Data Science** | Neural networks, tutorials | 10-15 articles |
-| **Distill.pub** | Visual explanations | 5-10 articles |
-| **Jay Alammar's Blog** | Transformers, attention | 3-5 articles |
-| **colah.github.io** | LSTMs, CNNs | 3-5 articles |
-
-### Sample Articles
-1. "The Illustrated Transformer" (Jay Alammar)
-2. "Understanding LSTM Networks" (Christopher Olah)
-3. "A Gentle Introduction to Neural Networks" (TDS)
-4. "Visualizing Neural Networks with Activation Atlases" (Distill)
-
-### Access Method
-- Web scraping (BeautifulSoup, requests)
-- Manual download for sites with restrictive policies
-- **License:** Fair use for educational purposes (cite sources)
-
-### Content Types
-- ✅ Text: Explanations, step-by-step guides
-- ✅ Images: Custom diagrams, animations (as static images), code visualizations
-
-### Download Script
-Location: `ingest/scrape_articles.py`
+### Example Papers
+- "Attention Is All You Need" (Transformers)
+- "Deep Residual Learning for Image Recognition" (ResNet)
+- "Adam: A Method for Stochastic Optimization"
 
 ---
 
-## 3. Wikipedia (Tertiary Source)
+## 2. RealPython Tutorials (Practical Source)
 
 ### Description
-Structured articles on ML/AI concepts with illustrations.
+Practical ML/DL tutorials with code examples, visualizations, and step-by-step guides. Focuses on Python implementation details and best practices.
 
-### Access Method
-- **API:** Wikipedia API (Python library: `wikipedia-api`)
-- **License:** CC BY-SA 3.0
-- **Cost:** Free
-
-### Sample Articles
-| Topic | Why Include | Has Images |
-|-------|-------------|------------|
-| Neural network | Foundational concept | ✅ Architecture diagrams |
-| Convolutional neural network | CNN visualization | ✅ Convolution examples |
-| Recurrent neural network | RNN structure | ✅ Unrolled diagrams |
-| Transformer (machine learning) | Attention mechanism | ✅ Architecture |
-| Backpropagation | Algorithm flowchart | ✅ Computation graph |
-| Gradient descent | Optimization visual | ✅ 3D loss surface |
-| Overfitting | Concept illustration | ✅ Training curves |
+### Content Characteristics
+- ✅ **Text:** Code examples, implementation guides, debugging tips, performance optimization
+- ✅ **Images:** Code screenshots, output visualizations, workflow diagrams
+- ✅ **License:** Fair use for educational purposes
 
 ### Download Script
-Location: `ingest/download_wikipedia.py`
+**Location:** `ingest/download_realpython.py`
 
-**Example usage:**
-```python
-import wikipediaapi
-
-wiki = wikipediaapi.Wikipedia('en')
-page = wiki.page('Neural_network')
-
-# Get text
-text = page.text
-
-# Get images (requires parsing HTML)
-# Use requests + BeautifulSoup to download images
+**Usage:**
+```bash
+python download_realpython.py --num-articles 10
 ```
 
+**Key Features:**
+- Scrapes article HTML from realpython.com
+- Extracts code blocks and inline images
+- Preserves code formatting and syntax highlighting
+- Saves to `data/raw/realpython/`
+
+### Example Tutorials
+- "Python AI: How to Build a Neural Network"
+- "PyTorch Tutorial: Getting Started with Deep Learning"
+- "Building a Neural Network with Keras"
+
 ---
 
-## 4. Official Documentation (Quaternary Source)
+## 3. Medium Articles (Industry Source)
 
 ### Description
-Official documentation pages from popular ML frameworks.
+Practical ML/DL articles from Medium and TowardsDataScience focusing on real-world use cases, industry insights, common pitfalls, and project walkthroughs.
 
-### Target Frameworks
-| Framework | Pages to Include | Focus |
-|-----------|------------------|-------|
-| **PyTorch** | Tutorials, nn.Module docs | Architecture examples |
-| **TensorFlow** | Keras guides | Layer diagrams |
-| **Scikit-learn** | Algorithm explanations | Decision boundaries |
-| **Hugging Face** | Transformers guide | Model cards |
+### Content Characteristics
+- ✅ **Text:** Project case studies, concept explanations, best practices, troubleshooting guides
+- ✅ **Images:** Custom diagrams, infographics, result comparisons, architecture illustrations
+- ✅ **License:** Fair use for educational purposes
 
-### Sample Pages
-1. PyTorch: "Neural Networks Tutorial"
-2. TensorFlow: "Convolutional Neural Networks"
-3. Scikit-learn: "Comparing different clustering algorithms"
-4. Hugging Face: "BERT model documentation"
+### Download Script
+**Location:** `ingest/download_medium.py`
 
-### Access Method
-- Manual download (most sites allow scraping)
-- Some sites provide data dumps
-- **License:** Varies (Apache 2.0, MIT, BSD) - check each
+**Usage:**
+```bash
+python download_medium.py --num-articles 7
+```
 
-### Content Types
-- ✅ Text: API docs, conceptual guides
-- ✅ Images: Code output visualizations, architecture diagrams
+**Key Features:**
+- Scrapes article content via Medium API or direct HTML parsing
+- Handles paywalled articles (when accessible)
+- Extracts embedded images and code snippets
+- Saves to `data/raw/medium/`
 
----
-
-## 📊 Data Collection Summary
-
-| Source | Documents | Images | License | Difficulty |
-|--------|-----------|--------|---------|------------|
-| arXiv | 40-50 | 100-200 | Open access | ⭐⭐ Medium |
-| Blogs | 20-30 | 40-100 | Fair use | ⭐⭐⭐ Easy |
-| Wikipedia | 15-25 | 30-60 | CC BY-SA | ⭐⭐⭐ Easy |
-| Docs | 10-15 | 20-40 | Varies | ⭐ Hard |
-| **TOTAL** | **85-120** | **190-400** | - | - |
+### Example Articles
+- "Understanding Transformers in NLP"
+- "How Agents Plan Complex Tasks"
+- "The Math Behind Neural Networks"
 
 ---
 
-## 🔍 Specific Topics to Cover
+## 📊 Dataset Summary
 
-To ensure comprehensive coverage of AI/ML concepts:
+| Source | Documents | Key Strength | License |
+|--------|-----------|--------------|---------|
+| **arXiv** | 35 | Research depth, mathematical rigor | Open access |
+| **RealPython** | 9 | Code examples, implementation details | Fair use |
+| **Medium/TDS** | 10 | Industry insights, real-world cases | Fair use |
+| **TOTAL** | **54** | Comprehensive coverage | - |
 
-### Core Concepts (Must Have)
-- [ ] Neural Networks (basics)
-- [ ] Backpropagation
-- [ ] Gradient Descent
-- [ ] Overfitting & Regularization
-- [ ] Activation Functions
-
-### Architectures (Must Have)
-- [ ] Convolutional Neural Networks (CNNs)
-- [ ] Recurrent Neural Networks (RNNs)
-- [ ] Long Short-Term Memory (LSTMs)
-- [ ] Transformers
-- [ ] ResNet / Skip Connections
-
-### Advanced Topics (Nice to Have)
-- [ ] Attention Mechanisms
-- [ ] Batch Normalization
-- [ ] Dropout
-- [ ] Transfer Learning
-- [ ] Generative Adversarial Networks (GANs)
-- [ ] Variational Autoencoders (VAEs)
+### Content Statistics
+- **Text Chunks:** 369 (avg 500 tokens)
+- **Images:** 142 (with VLM captions)
+- **Topics Covered:** Neural networks, CNNs, RNNs, Transformers, optimization, regularization
 
 ---
 
-## 📥 Download Instructions
+## 🚀 Running the Pipeline
 
-### Step 1: arXiv Papers
+### Download All Sources
 ```bash
 cd ingest
-python download_arxiv.py --categories cs.LG,cs.AI --max-results 50 --output ../data/raw/papers
+
+# Download arXiv papers
+python download_arxiv.py --num-papers 35 --categories cs.LG,cs.AI,cs.CV
+
+# Download RealPython tutorials  
+python download_realpython.py --num-articles 9
+
+# Download Medium articles
+python download_medium.py --num-articles 10
 ```
 
-### Step 2: Blog Articles
+### Process Documents
 ```bash
-python scrape_articles.py --sources tds,distill,alammar --output ../data/raw/articles
+# Run full ingestion pipeline
+cd ..
+python run_pipeline.py
 ```
 
-### Step 3: Wikipedia
-```bash
-python download_wikipedia.py --topics neural_network,cnn,rnn,transformer --output ../data/raw/wiki
-```
-
-### Step 4: Extract Images
-```bash
-python extract_images.py --input ../data/raw --output ../data/processed/images
-```
+This will:
+1. Extract text and images from downloaded content
+2. Generate enriched captions for images using VLM
+3. Chunk documents for optimal retrieval
+4. Create embeddings and build vector index
 
 ---
 
 ## 🔒 Legal & Ethical Considerations
 
-### Licensing Compliance
-- ✅ **arXiv:** Cite papers, respect author rights
-- ✅ **Wikipedia:** Attribute under CC BY-SA 3.0
-- ⚠️ **Blogs:** Fair use for non-commercial educational POC (cite sources)
-- ⚠️ **Docs:** Check each framework's terms (most allow educational use)
+### Licensing
+- **arXiv:** Open access, cite papers appropriately
+- **RealPython/Medium:** Fair use for non-commercial educational purposes, always cite sources
 
 ### Best Practices
-1. Always cite original sources in UI
-2. Do not redistribute raw datasets
-3. Use only for educational/research purposes
-4. Respect robots.txt for web scraping
-5. Rate-limit API calls
-
-### Privacy
-- No personal data collected
-- No user-generated content in corpus
-- Publicly available content only
+1. Cite original sources in UI responses
+2. Use only for educational/research purposes  
+3. Respect rate limits and robots.txt
+4. Do not redistribute raw content
 
 ---
 
-## 📝 Metadata Schema
+## 📝 Example Data Structure
 
-### Document Metadata (`documents.json`)
-```json
-{
-  "doc_id": "arxiv_1706.03762",
-  "title": "Attention Is All You Need",
-  "source_type": "arxiv",
-  "source_uri": "https://arxiv.org/abs/1706.03762",
-  "authors": ["Vaswani et al."],
-  "year": 2017,
-  "abstract": "...",
-  "topics": ["transformer", "attention", "nlp"],
-  "has_images": true,
-  "image_ids": ["img_001", "img_002"],
-  "created_at": "2025-01-15T10:30:00Z"
-}
+### Downloaded Content
+```
+data/raw/
+├── arxiv/
+│   ├── 1706.03762.pdf           # "Attention Is All You Need"
+│   └── 1512.03385.pdf           # "Deep Residual Learning"
+├── realpython/
+│   ├── python-ai-neural-network/
+│   │   ├── content.json
+│   │   └── images/
+│   └── pytorch-tutorial/
+│       └── content.json
+└── medium/
+    ├── agents-plan-tasks/
+    │   ├── content.json
+    │   └── images/
+    └── understanding-transformers/
+        └── content.json
 ```
 
-### Image Metadata (`images.json`)
-```json
-{
-  "image_id": "img_001",
-  "doc_id": "arxiv_1706.03762",
-  "filepath": "data/processed/images/arxiv_1706.03762/img_001.png",
-  "caption": "Multi-Head Attention architecture",
-  "alt_text": "Diagram showing Q, K, V inputs to scaled dot-product attention",
-  "page_num": 3,
-  "source_uri": "https://arxiv.org/abs/1706.03762",
-  "width": 800,
-  "height": 600,
-  "format": "png"
-}
+### Processed Output
+```
+data/processed/
+├── arxiv_1706_03762_chunks.json      # Text chunks
+├── arxiv_1706_03762_images.json      # Image metadata + captions
+└── processed_docs.json                # Document index
 ```
 
 ---
 
-## 🚀 Implementation Status (Jan 19, 2026)
+## 🎯 Topic Coverage
 
-**✅ COMPLETE - All Sources Successfully Integrated**
+The combined dataset covers:
 
-### Final Dataset Statistics:
+### Core Concepts
+- Neural networks fundamentals
+- Backpropagation & gradient descent
+- Loss functions & optimization
+- Regularization (dropout, L1/L2)
 
-| Source | Count | Status | Notes |
-|--------|-------|--------|-------|
-| **arXiv Papers** | 35 | ✅ Indexed | All CS.LG/AI categories covered |
-| **RealPython** | 9 | ✅ Indexed | Code-focused tutorials |
-| **Medium/TDS** | 10 | ✅ Indexed | Concept explanations |
-| **TOTAL** | **54** | ✅ **INDEXED** | Production-ready |
+### Architectures  
+- Feedforward networks
+- CNNs (Convolutional Neural Networks)
+- RNNs & LSTMs
+- Transformers & Attention
 
-### Content Statistics:
-
-- **Text Chunks:** 369 (avg 500 tokens each)
-- **Images:** 142 (with VLM descriptions)
-- **Coverage:** Core ML concepts + Advanced architectures
-- **Processing Cost:** $0.18 VLM + $0.015 embeddings
-
-### Next Steps:
-
-1. **Query System:** Use [README.md Quick Start](../README.md#-quick-start-3-steps)
-2. **Technical Details:** See [ARCHITECTURE.md](ARCHITECTURE.md)
-3. **Pipeline Info:** See [README.md How It Works](../README.md#-how-it-works)
+### Advanced Topics
+- Transfer learning
+- Batch normalization
+- Residual connections
+- Multi-head attention
 
 ---
 
-**Last Updated:** January 19, 2026  
-**Status:** ✅ All sources integrated and indexed
+**Last Updated:** January 28, 2026  
+**Status:** ✅ All sources integrated and production-ready
+

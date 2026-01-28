@@ -236,8 +236,6 @@ def _assemble_enriched_caption_text(
 
 def _load_and_validate_metadata(metadata_path: Path) -> Optional[List[Dict]]:
     """
-    STAGE 1: Validation - load JSON with structure validation.
-    STAGE 3: DRY - extract metadata loading logic.
     
     Load and validate images metadata from JSON file.
     
@@ -297,7 +295,7 @@ def save_images_metadata(metadata: List[Dict], output_path: Path):
     
     STAGE 1: Validation - validate input parameters
     """
-    # STAGE 1: Parameter validation
+    # Parameter validation
     if not isinstance(metadata, list):
         logging.error(f"metadata must be list, got {type(metadata).__name__}")
         return
@@ -371,7 +369,7 @@ def enrich_single_image(
             if image_path and Path(image_path).exists():
                 vlm_description = _generate_vlm_description_safe(captioner, image_path, img_meta.get('image_id', 'unknown'))
         
-        # STAGE 3: Use helper function to assemble caption
+        # Use helper function to assemble caption
         enriched_caption = _assemble_enriched_caption_text(
             author_caption,
             vlm_description,
@@ -391,7 +389,7 @@ def enrich_single_image(
     page_num = img_meta.get('page_num')
     bbox_dict = img_meta.get('bbox')
     
-    # STAGE 1: Validate page_num and bbox_dict
+    # Validate page_num and bbox_dict
     if not isinstance(page_num, int) or page_num < 1:
         logging.warning(f"Skipping {img_meta.get('image_id', 'unknown')} - invalid page_num: {page_num}")
         return img_meta
@@ -415,14 +413,14 @@ def enrich_single_image(
     
     doc = pdf_docs[doc_id]
     
-    # STAGE 1: Validate page bounds
+    # Validate page bounds
     if not _validate_page_bounds(doc, page_num):
         return img_meta
     
     try:
         page = doc[page_num - PDF_PAGE_OFFSET]
         
-        # STAGE 1: Create bbox with validation
+        # Validate and create bbox
         bbox = fitz.Rect(
             float(bbox_dict['x0']),
             float(bbox_dict['y0']),
@@ -430,10 +428,10 @@ def enrich_single_image(
             float(bbox_dict['y1'])
         )
         
-        # STAGE 3: Use helper for context extraction
+        # Use helper for context extraction
         context = _extract_context_safely(page, bbox, doc, page_num - PDF_PAGE_OFFSET)
         
-        # STAGE 3: Use helper for VLM generation
+        # Use helper for VLM generation
         image_path = img_meta.get('filepath')
         vlm_description = ""
         if captioner and image_path:
@@ -446,7 +444,7 @@ def enrich_single_image(
         context_before = context.get('before', '')
         context_after = context.get('after', '')
         
-        # STAGE 3: Use helper function to assemble caption
+        # Use helper function to assemble caption
         enriched_caption = _assemble_enriched_caption_text(
             author_caption,
             vlm_description,
@@ -488,7 +486,7 @@ def enrich_all_images(
     Returns:
         Updated list of image metadata with enriched fields
     """
-    # STAGE 1: Parameter validation
+    # Parameter validation
     if not isinstance(images_metadata, list):
         logging.error(f"images_metadata must be list, got {type(images_metadata).__name__}")
         return images_metadata
@@ -513,7 +511,7 @@ def enrich_all_images(
     
     try:
         for idx, img_meta in enumerate(images_metadata, 1):
-            # STAGE 1: Validate image metadata before processing
+            # Validate image metadata before processing
             if not _validate_image_metadata(img_meta):
                 enriched_images.append(img_meta)
                 continue
@@ -522,7 +520,7 @@ def enrich_all_images(
             logging.debug(f"[{idx}/{total}] Processing {image_id}")
             
             try:
-                # STAGE 3: Use helper function to enrich single image
+                # Use helper function to enrich single image
                 enriched = enrich_single_image(
                     img_meta,
                     pdf_docs,
@@ -531,7 +529,7 @@ def enrich_all_images(
                 )
                 enriched_images.append(enriched)
                 
-                # STAGE 2: Rate limiting for API calls (20 req/min = 3.5 sec/req)
+                # Rate limiting for API calls (20 req/min = 3.5 sec/req)
                 if captioner and idx < total and img_meta.get('extraction_method', EXTRACTION_METHOD_PDF) == EXTRACTION_METHOD_PDF:
                     import time
                     time.sleep(RATE_LIMIT_DELAY_SECONDS)
@@ -541,7 +539,7 @@ def enrich_all_images(
                 enriched_images.append(img_meta)  # Keep original on error
     
     finally:
-        # STAGE 1: Guarantee cleanup of PDF documents
+        # Guarantee cleanup of PDF documents
         for doc in pdf_docs.values():
             try:
                 doc.close()
@@ -570,7 +568,7 @@ def generate_captions_for_doc(
     Returns:
         Number of images captioned
     """
-    # STAGE 1: Parameter validation
+    # Parameter validation
     if not isinstance(doc_id, str) or not doc_id.strip():
         logging.error(f"doc_id must be non-empty string, got {type(doc_id).__name__}: {doc_id}")
         return 0
@@ -582,7 +580,7 @@ def generate_captions_for_doc(
     if raw_papers_dir is None:
         raw_papers_dir = project_root / "data" / "raw" / "papers"
     
-    # STAGE 1: Validate paths
+    # Validate paths
     if not isinstance(metadata_path, Path):
         try:
             metadata_path = Path(metadata_path)
@@ -605,7 +603,7 @@ def generate_captions_for_doc(
         logging.error(f"Raw papers directory not found: {raw_papers_dir}")
         return 0
     
-    # STAGE 3: Use helper function for safe JSON loading
+    # Use helper function for safe JSON loading
     all_images = _load_and_validate_metadata(metadata_path)
     if all_images is None:
         return 0

@@ -309,19 +309,19 @@ class FaithfulnessJudge:
             Formatted prompt for judge
         """
         prompt = f"""QUERY:
-{query}
+        {query}
 
-RETRIEVED CONTEXT:
-{context}
+        RETRIEVED CONTEXT:
+        {context}
 
-GENERATED ANSWER:
-{answer}
+        GENERATED ANSWER:
+        {answer}
 
-CITED SOURCES:
-{cited_sources}
+        CITED SOURCES:
+        {cited_sources}
 
-Please evaluate this answer on the 4 dimensions (Relevance, Completeness, Accuracy, Citation Quality).
-Focus on whether the answer is grounded in the provided context and properly cites sources."""
+        Please evaluate this answer on the 4 dimensions (Relevance, Completeness, Accuracy, Citation Quality).
+        Focus on whether the answer is grounded in the provided context and properly cites sources."""
         
         return prompt
     
@@ -490,7 +490,7 @@ Focus on whether the answer is grounded in the provided context and properly cit
     
     def evaluate_query(self, query_data: dict) -> QueryEvaluation:
         """
-        Orchestrate single query evaluation (refactored for SRP).
+        Orchestrate single query evaluation .
         
         Steps:
         1. Run retrieval

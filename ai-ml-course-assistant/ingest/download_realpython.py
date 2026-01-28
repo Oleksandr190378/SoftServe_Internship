@@ -12,6 +12,7 @@ API:
 """
 
 import os
+import sys
 import json
 import time
 import logging
@@ -21,6 +22,7 @@ from datetime import datetime
 from typing import List, Dict, Optional
 from urllib.parse import urlparse
 import argparse
+
 
 try:
     from bs4 import BeautifulSoup
@@ -41,12 +43,27 @@ TITLE_TRUNCATE_LENGTH = 60  # Max length for title display in logs
 
 CURATED_ARTICLES = [
     {
-    "url": "https://realpython.com/logistic-regression-python/",
-    "slug": "logistic-regression-python",
-    "title": "Logistic Regression in Python Using Scikit-Learn",
-    "topic": "Machine Learning Fundamentals",
-    "description": "A fundamental classification algorithm that serves as the basis for understanding how individual neurons in a network function."
-  },
+        "url": "https://realpython.com/chromadb-vector-database/",
+        "slug": "chromadb-vector-database",
+        "title": "Embeddings and Vector Databases With ChromaDB",
+        "topic": "Advanced AI Databases",
+        "description": "ChromaDB, vector search, embeddings, LLM context, practical ML example"
+    },
+    {
+        "url": "https://realpython.com/linear-regression-in-python/",
+        "slug": "linear-regression-in-python",
+        "title": "Linear Regression in Python",
+        "topic": "Machine Learning Fundamentals",
+        "description": "Simple and multiple linear regression, model evaluation, scikit-learn implementation"
+    },
+   
+    {
+        "url": "https://realpython.com/logistic-regression-python/",
+        "slug": "logistic-regression-python",
+        "title": "Logistic Regression in Python Using Scikit-Learn",
+        "topic": "Machine Learning Fundamentals",
+        "description": "A fundamental classification algorithm that serves as the basis for understanding how individual neurons in a network function."
+    },
     {
         "url": "https://realpython.com/python-ai-neural-network/",
         "slug": "python-ai-neural-network",

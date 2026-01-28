@@ -35,9 +35,7 @@ from utils.logging_config import setup_logging
 
 setup_logging()
 
-# ============================================================================
-# CONFIGURATION CONSTANTS - STAGE 2: Constants instead of magic numbers
-# ============================================================================
+
 DEFAULT_INPUT_DIR = Path(__file__).parent.parent / "data" / "raw" / "papers"
 DEFAULT_OUTPUT_DIR = Path(__file__).parent.parent / "data" / "processed" / "images"
 
@@ -60,10 +58,6 @@ PNG_FORMAT = "png"  # Image format for saved vector graphics
 # Figure detection constants
 FIGURE_CAPTION_KEYWORDS = ["figure", "fig.", "table", "diagram"]
 
-
-# ============================================================================
-# HELPER FUNCTIONS - STAGE 3: Extract DRY/SRP principles
-# ============================================================================
 
 def _create_bbox_from_rect(rect) -> Optional[Dict]:
     """
@@ -107,7 +101,7 @@ def _create_image_metadata(
     region_index: Optional[int] = None
 ) -> Dict:
     """
-    STAGE 3: DRY/SRP - consolidate metadata creation into single function.
+    Consolidate metadata creation into single function.
     
     Creates metadata dictionary for extracted image.
     
@@ -160,7 +154,7 @@ def _create_image_metadata(
 
 def _load_papers_metadata(metadata_path: Path) -> Dict[str, Dict]:
     """
-    STAGE 3: DRY - extract JSON loading logic into helper function.
+    Extract JSON loading logic into helper function.
     
     Load papers metadata from JSON file.
     
@@ -188,7 +182,7 @@ def _load_papers_metadata(metadata_path: Path) -> Dict[str, Dict]:
 
 def _save_images_metadata_file(images_metadata_path: Path, all_images_metadata: List[Dict]) -> bool:
     """
-    STAGE 3: DRY - extract JSON saving logic into helper function.
+    Extract JSON saving logic into helper function.
     
     Save images metadata to JSON file.
     
@@ -428,7 +422,7 @@ def extract_vector_graphics(
     Extract vector graphics regions as images.
     Only captures areas with actual graphics, not text.
     
-    STAGE 1: Validation - validate DPI, min_size, and handle errors gracefully
+    Validation - validate DPI, min_size, and handle errors gracefully
     """
     # STAGE 1: Parameter validation
     if pdf_document is None:
@@ -631,8 +625,7 @@ def extract_images_smart(
 def extract_text_from_pdf(pdf_path: Path) -> Tuple[str, List[Dict]]:
     """
     Extract text from PDF.
-    
-    STAGE 1: Validation - proper try-finally to ensure PDF is closed
+
     """
     # STAGE 1: Parameter validation
     if not isinstance(pdf_path, Path):
@@ -688,8 +681,7 @@ def process_all_papers(
 ) -> Tuple[List[Dict], List[Dict]]:
     """
     Process all papers with smart extraction.
-    
-    STAGE 1: Validation - check parameters and handle JSON errors
+
     """
     # STAGE 1: Parameter validation
     if not isinstance(input_dir, Path):
@@ -874,9 +866,7 @@ def save_metadata(
 ) -> Tuple[Optional[Path], Optional[Path]]:
     """
     Save metadata to JSON files.
-    
-    STAGE 1: Validation - handle JSON errors properly
-    STAGE 3: Uses helper functions for DRY principle
+
     
     Args:
         images_metadata: List of image metadata dictionaries

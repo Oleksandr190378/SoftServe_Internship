@@ -35,8 +35,6 @@ FIGURE_REFERENCE_PATTERN = r'\b(Figure|Fig\.|Table)\s+\d+\b'
 
 def _collect_text_blocks_from_page(page) -> List[Dict]:
     """
-    STAGE 3: DRY - extract text collection logic.
-    
     Collect all text blocks with positions from a page.
     
     Args:
@@ -74,9 +72,6 @@ def _collect_text_blocks_from_page(page) -> List[Dict]:
 
 def _find_line_index(block: Dict, starting_line: Dict) -> int:
     """
-    STAGE 1: Validation - find line by value comparison, not reference.
-    STAGE 3: DRY - extract line finding logic.
-    
     Find index of starting line in block.
     
     Args:
@@ -168,8 +163,6 @@ def _extract_sentence_from_end(text: str, max_chars: int) -> str:
 
 def _extract_sentence_from_start(text: str, max_chars: int) -> str:
     """
-    STAGE 3: SRP - extract sentence from start logic.
-    
     Extract sentence from start of text up to max_chars.
     
     Args:
@@ -273,7 +266,7 @@ def extract_full_caption_text(block: Dict, starting_line: Dict, max_length: int 
         logging.warning(f"Invalid max_length {max_length}")
         return ""
     
-    # STAGE 3: Use helper function to find line
+    # STAGE 2: Use helper function to find line
     start_idx = _find_line_index(block, starting_line)
     
     if start_idx == -1:

@@ -50,7 +50,7 @@ class RAGGenerator:
     Answer generator for RAG pipeline.
     
     Features:
-    - OpenAI GPT-5 Nano integration (400K context, 128K output, reasoning support)
+    - OpenAI GPT-5 Mini integration (400K context, 128K output, reasoning support)
     - Grounded answer generation with mandatory citations
     - Topic validation (AI/ML only)
     - "I don't know" behavior when context insufficient
@@ -59,7 +59,7 @@ class RAGGenerator:
     
     def __init__(self, openai_api_key: str = None):
         """
-        Initialize generator with OpenAI GPT-5 Nano.
+        Initialize generator with OpenAI GPT-5 Mini.
         
         Args:
             openai_api_key: Optional API key (uses .env if not provided)
@@ -80,8 +80,6 @@ class RAGGenerator:
     def _check_special_responses(self, answer_text: str) -> Tuple[bool, bool]:
         """
         Check if response is off-topic or has insufficient context.
-        
-        Single Responsibility: Response type detection.
         
         Args:
             answer_text: The answer text to check
@@ -277,7 +275,7 @@ class RAGGenerator:
                 text_chunks = llm_input.get('text_chunks', [])
                 images = llm_input.get('images', [])
                 
-                # Extract citations using helper methods (DRY)
+                # Extract citations using helper methods 
                 chunk_ids, chunk_citations = extract_chunk_citations(response_text, text_chunks)
                 image_ids, image_citations = extract_image_citations(response_text, images)
                 
@@ -287,7 +285,7 @@ class RAGGenerator:
                     [f"[{letter}]" for letter in image_citations]
                 )
                 
-                # Check response type using helper method (SRP)
+                # Check response type using helper method 
                 is_off_topic, is_insufficient = self._check_special_responses(response_text)
                 
                 logging.info(f"✓ Extracted {len(chunk_ids)} chunk citations, {len(image_ids)} image citations from unstructured text")

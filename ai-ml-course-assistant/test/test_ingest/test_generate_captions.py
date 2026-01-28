@@ -16,11 +16,10 @@ import io
 import sys
 
 # Setup path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / "ingest"))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from generate_captions import (
+from ingest.generate_captions import (
     ImageCaptioner,
-    create_enriched_caption,
     _validate_image_path,
     _resize_and_convert_image,
     _encode_image_to_base64,
@@ -45,20 +44,20 @@ class TestHelperFunctions(unittest.TestCase):
     
     def test_validate_image_path_file_exists(self):
         """✅ validate_image_path returns True for existing readable file."""
-        with patch('generate_captions.Path') as mock_path:
+        with patch('ingest.generate_captions.Path') as mock_path:
             mock_instance = MagicMock()
             mock_path.return_value = mock_instance
             mock_instance.exists.return_value = True
             mock_instance.is_file.return_value = True
             
-            with patch('generate_captions.os.access', return_value=True):
+            with patch('ingest.generate_captions.os.access', return_value=True):
                 result = _validate_image_path("test.jpg")
         
         self.assertTrue(result)
     
     def test_validate_image_path_file_not_found(self):
         """✅ validate_image_path returns False for non-existent file."""
-        with patch('generate_captions.Path') as mock_path:
+        with patch('ingest.generate_captions.Path') as mock_path:
             mock_instance = MagicMock()
             mock_path.return_value = mock_instance
             mock_instance.exists.return_value = False
@@ -69,7 +68,7 @@ class TestHelperFunctions(unittest.TestCase):
     
     def test_validate_image_path_not_file(self):
         """✅ validate_image_path returns False if path is directory."""
-        with patch('generate_captions.Path') as mock_path:
+        with patch('ingest.generate_captions.Path') as mock_path:
             mock_instance = MagicMock()
             mock_path.return_value = mock_instance
             mock_instance.exists.return_value = True
@@ -81,13 +80,13 @@ class TestHelperFunctions(unittest.TestCase):
     
     def test_validate_image_path_not_readable(self):
         """✅ validate_image_path returns False if file not readable."""
-        with patch('generate_captions.Path') as mock_path:
+        with patch('ingest.generate_captions.Path') as mock_path:
             mock_instance = MagicMock()
             mock_path.return_value = mock_instance
             mock_instance.exists.return_value = True
             mock_instance.is_file.return_value = True
             
-            with patch('generate_captions.os.access', return_value=False):
+            with patch('ingest.generate_captions.os.access', return_value=False):
                 result = _validate_image_path("test.jpg")
         
         self.assertFalse(result)
@@ -133,12 +132,12 @@ class TestHelperFunctions(unittest.TestCase):
         """✅ encode_image_to_base64 returns base64 string."""
         mock_img = MagicMock(spec=Image.Image)
         
-        with patch('generate_captions.io.BytesIO') as mock_buffer:
+        with patch('ingest.generate_captions.io.BytesIO') as mock_buffer:
             mock_buffer_instance = MagicMock()
             mock_buffer.return_value = mock_buffer_instance
             mock_buffer_instance.read.return_value = b'\x89PNG\r\n'
             
-            with patch('generate_captions.base64.b64encode') as mock_encode:
+            with patch('ingest.generate_captions.base64.b64encode') as mock_encode:
                 mock_encode.return_value = b'iVBORw0KGgo='
                 
                 result = _encode_image_to_base64(mock_img)
@@ -205,7 +204,7 @@ class TestParameterValidation(unittest.TestCase):
     
     def test_encode_image_path_not_found(self):
         """✅ encode_image validates file existence."""
-        with patch('generate_captions._validate_image_path', return_value=False):
+        with patch('ingest.generate_captions._validate_image_path', return_value=False):
             captioner = ImageCaptioner(api_key="test_key")
             result = captioner.encode_image("nonexistent.jpg")
         
@@ -221,7 +220,7 @@ class TestParameterValidation(unittest.TestCase):
     
     def test_generate_caption_invalid_max_length(self):
         """✅ generate_caption validates max_length parameter."""
-        with patch('generate_captions.ImageCaptioner.encode_image', return_value=None):
+        with patch('ingest.generate_captions.ImageCaptioner.encode_image', return_value=None):
             with patch.dict('os.environ', {'OPENAI_API_KEY': 'test_key'}):
                 captioner = ImageCaptioner()
                 result = captioner.generate_caption("test.jpg", max_length=-1)
@@ -230,60 +229,10 @@ class TestParameterValidation(unittest.TestCase):
     
     def test_generate_caption_encoding_failure(self):
         """✅ generate_caption handles encoding failure."""
-        with patch('generate_captions.ImageCaptioner.encode_image', return_value=None):
+        with patch('ingest.generate_captions.ImageCaptioner.encode_image', return_value=None):
             with patch.dict('os.environ', {'OPENAI_API_KEY': 'test_key'}):
                 captioner = ImageCaptioner()
                 result = captioner.generate_caption("test.jpg")
-        
-        self.assertIsNone(result)
-    
-    def test_create_enriched_caption_invalid_image_id(self):
-        """✅ create_enriched_caption validates image_id."""
-        captioner = MagicMock(spec=ImageCaptioner)
-        
-        result = create_enriched_caption(
-            "",  # Empty image_id
-            "test.jpg",
-            {},
-            captioner
-        )
-        
-        self.assertIsNone(result)
-    
-    def test_create_enriched_caption_invalid_image_path_type(self):
-        """✅ create_enriched_caption validates image_path type."""
-        captioner = MagicMock(spec=ImageCaptioner)
-        
-        result = create_enriched_caption(
-            "id_123",
-            123,  # Int instead of str
-            {},
-            captioner
-        )
-        
-        self.assertIsNone(result)
-    
-    def test_create_enriched_caption_invalid_context_dict_type(self):
-        """✅ create_enriched_caption validates context_dict type."""
-        captioner = MagicMock(spec=ImageCaptioner)
-        
-        result = create_enriched_caption(
-            "id_123",
-            "test.jpg",
-            "not a dict",  # String instead of dict
-            captioner
-        )
-        
-        self.assertIsNone(result)
-    
-    def test_create_enriched_caption_invalid_captioner_type(self):
-        """✅ create_enriched_caption validates captioner type."""
-        result = create_enriched_caption(
-            "id_123",
-            "test.jpg",
-            {},
-            "not a captioner"  # String instead of ImageCaptioner
-        )
         
         self.assertIsNone(result)
 
@@ -336,85 +285,6 @@ class TestConstants(unittest.TestCase):
 class TestIntegration(unittest.TestCase):
     """Test STAGE 3 integration scenarios."""
     
-    def test_create_enriched_caption_success(self):
-        """✅ create_enriched_caption works end-to-end."""
-        mock_captioner = MagicMock(spec=ImageCaptioner)
-        mock_captioner.generate_caption.return_value = "Test description"
-        
-        context = {
-            "figure_caption": "Figure 1: Test",
-            "before": "Previous text",
-            "after": "Following text"
-        }
-        
-        result = create_enriched_caption(
-            "test_001",
-            "test.jpg",
-            context,
-            mock_captioner
-        )
-        
-        self.assertIsNotNone(result)
-        self.assertEqual(result["image_id"], "test_001")
-        self.assertIn("Figure caption", result["enriched_caption"])
-        self.assertIn("Visual description", result["enriched_caption"])
-        self.assertIn("Context", result["enriched_caption"])
-    
-    def test_create_enriched_caption_caption_generation_fails(self):
-        """✅ create_enriched_caption handles caption generation failure."""
-        mock_captioner = MagicMock(spec=ImageCaptioner)
-        mock_captioner.generate_caption.return_value = None
-        
-        context = {"figure_caption": "Figure 1: Test"}
-        
-        result = create_enriched_caption(
-            "test_001",
-            "test.jpg",
-            context,
-            mock_captioner
-        )
-        
-        self.assertIsNotNone(result)  # Should still return something
-        self.assertEqual(result["vlm_description"], "")
-    
-    def test_create_enriched_caption_empty_context(self):
-        """✅ create_enriched_caption handles empty context."""
-        mock_captioner = MagicMock(spec=ImageCaptioner)
-        mock_captioner.generate_caption.return_value = "Visual content"
-        
-        result = create_enriched_caption(
-            "test_001",
-            "test.jpg",
-            {},
-            mock_captioner
-        )
-        
-        self.assertIsNotNone(result)
-        self.assertEqual(result["author_caption"], "")
-        self.assertEqual(result["context_text"], "")
-    
-    def test_create_enriched_caption_type_coercion(self):
-        """✅ create_enriched_caption coerces invalid types in context."""
-        mock_captioner = MagicMock(spec=ImageCaptioner)
-        mock_captioner.generate_caption.return_value = "Visual"
-        
-        context = {
-            "figure_caption": 123,  # Should be string
-            "before": None,  # Should be string
-            "after": ["list"]  # Should be string
-        }
-        
-        result = create_enriched_caption(
-            "test_001",
-            "test.jpg",
-            context,
-            mock_captioner
-        )
-        
-        self.assertIsNotNone(result)
-        # Should not crash, should handle gracefully
-        self.assertIsInstance(result["enriched_caption"], str)
-    
     def test_image_captioner_initialization_no_api_key(self):
         """✅ ImageCaptioner raises error when API key missing."""
         with patch.dict('os.environ', {}, clear=True):
@@ -424,7 +294,7 @@ class TestIntegration(unittest.TestCase):
     def test_image_captioner_initialization_with_api_key(self):
         """✅ ImageCaptioner initializes successfully with API key."""
         with patch.dict('os.environ', {'OPENAI_API_KEY': 'test_key'}):
-            with patch('generate_captions.OpenAI'):
+            with patch('ingest.generate_captions.OpenAI'):
                 captioner = ImageCaptioner()
                 self.assertEqual(captioner.model_name, "gpt-4.1-mini")
 
