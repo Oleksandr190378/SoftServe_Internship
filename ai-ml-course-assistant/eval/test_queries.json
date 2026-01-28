@@ -1,0 +1,203 @@
+{
+  "metadata": {
+    "created": "2026-01-04",
+    "description": "30 test queries for system evaluation (Phase D)",
+    "purpose": "Evaluate retrieval quality and answer quality across diverse query types"
+  },
+  "text_focused": [
+    {
+      "id": 1,
+      "query": "What is backpropagation?",
+      "category": "fundamentals",
+      "expected_content": ["gradient computation", "chain rule", "weight updates"]
+    },
+    {
+      "id": 2,
+      "query": "Explain dropout regularization",
+      "category": "regularization",
+      "expected_content": ["prevent overfitting", "random neuron deactivation", "training vs inference"]
+    },
+    {
+      "id": 3,
+      "query": "How does batch normalization work?",
+      "category": "normalization",
+      "expected_content": ["normalize layer inputs", "mean/variance", "training stability"]
+    },
+    {
+      "id": 4,
+      "query": "What is the vanishing gradient problem?",
+      "category": "training_issues",
+      "expected_content": ["deep networks", "gradient magnitude", "sigmoid/tanh"]
+    },
+    {
+      "id": 5,
+      "query": "Difference between CNN and RNN?",
+      "category": "architectures",
+      "expected_content": ["spatial vs sequential", "convolution", "recurrence"]
+    },
+    {
+      "id": 6,
+      "query": "What is transfer learning?",
+      "category": "training_techniques",
+      "expected_content": ["pretrained models", "fine-tuning", "feature extraction"]
+    },
+    {
+      "id": 7,
+      "query": "Explain cross-entropy loss",
+      "category": "loss_functions",
+      "expected_content": ["classification", "probability distribution", "log loss"]
+    },
+    {
+      "id": 8,
+      "query": "How does Adam optimizer work?",
+      "category": "optimizers",
+      "expected_content": ["adaptive learning rate", "momentum", "bias correction"]
+    },
+    {
+      "id": 9,
+      "query": "What is overfitting?",
+      "category": "model_evaluation",
+      "expected_content": ["training vs test performance", "generalization", "model complexity"]
+    },
+    {
+      "id": 10,
+      "query": "Explain gradient descent",
+      "category": "optimization",
+      "expected_content": ["loss minimization", "learning rate", "iterative updates"]
+    }
+  ],
+  "visual": [
+    {
+      "id": 11,
+      "query": "Show ResNet architecture",
+      "category": "architectures",
+      "expected_images": ["residual blocks", "skip connections"]
+    },
+    {
+      "id": 12,
+      "query": "Display LSTM cell diagram",
+      "category": "rnn",
+      "expected_images": ["gates", "cell state", "hidden state"]
+    },
+    {
+      "id": 13,
+      "query": "Show Transformer model",
+      "category": "attention",
+      "expected_images": ["encoder-decoder", "multi-head attention", "positional encoding"]
+    },
+    {
+      "id": 14,
+      "query": "Illustrate CNN layers",
+      "category": "cnn",
+      "expected_images": ["convolution", "pooling", "feature maps"]
+    },
+    {
+      "id": 15,
+      "query": "Show attention mechanism",
+      "category": "attention",
+      "expected_images": ["query-key-value", "attention weights"]
+    },
+    {
+      "id": 16,
+      "query": "Display GAN architecture",
+      "category": "generative",
+      "expected_images": ["generator", "discriminator", "adversarial training"]
+    },
+    {
+      "id": 17,
+      "query": "Show U-Net structure",
+      "category": "segmentation",
+      "expected_images": ["encoder-decoder", "skip connections", "upsampling"]
+    },
+    {
+      "id": 18,
+      "query": "Diagram of backpropagation",
+      "category": "training",
+      "expected_images": ["computational graph", "gradient flow"]
+    },
+    {
+      "id": 19,
+      "query": "Show activation functions",
+      "category": "components",
+      "expected_images": ["relu", "sigmoid", "tanh", "function plots"]
+    },
+    {
+      "id": 20,
+      "query": "Display neural network layers",
+      "category": "architectures",
+      "expected_images": ["input-hidden-output", "fully connected"]
+    }
+  ],
+  "hybrid": [
+    {
+      "id": 21,
+      "query": "Explain residual connections and show skip connections",
+      "category": "architectures",
+      "expected_content": ["identity mapping", "gradient flow"],
+      "expected_images": ["skip connection diagram"]
+    },
+    {
+      "id": 22,
+      "query": "What is attention mechanism? Show formula",
+      "category": "attention",
+      "expected_content": ["weighted sum", "query-key-value"],
+      "expected_images": ["attention equation", "attention visualization"]
+    },
+    {
+      "id": 23,
+      "query": "How does LSTM work? Show gates",
+      "category": "rnn",
+      "expected_content": ["forget gate", "input gate", "output gate"],
+      "expected_images": ["LSTM cell diagram"]
+    },
+    {
+      "id": 24,
+      "query": "Explain CNN architecture with diagram",
+      "category": "cnn",
+      "expected_content": ["convolution operation", "feature extraction"],
+      "expected_images": ["CNN layer diagram"]
+    },
+    {
+      "id": 25,
+      "query": "What is multi-head attention? Show parallel heads",
+      "category": "attention",
+      "expected_content": ["multiple attention mechanisms", "concatenation"],
+      "expected_images": ["multi-head diagram"]
+    },
+    {
+      "id": 26,
+      "query": "How does GAN train? Show discriminator/generator",
+      "category": "generative",
+      "expected_content": ["adversarial loss", "minimax game"],
+      "expected_images": ["GAN training diagram"]
+    },
+    {
+      "id": 27,
+      "query": "Explain encoder-decoder and show architecture",
+      "category": "seq2seq",
+      "expected_content": ["sequence to sequence", "context vector"],
+      "expected_images": ["encoder-decoder diagram"]
+    },
+    {
+      "id": 28,
+      "query": "What is batch normalization? Show computation graph",
+      "category": "normalization",
+      "expected_content": ["normalize activations", "learnable parameters"],
+      "expected_images": ["batch norm computation"]
+    },
+    {
+      "id": 29,
+      "query": "How does dropout work? Show visualization",
+      "category": "regularization",
+      "expected_content": ["random deactivation", "ensemble effect"],
+      "expected_images": ["dropout visualization"]
+    },
+    {
+      "id": 30,
+      "query": "Explain Adam optimizer with update rules",
+      "category": "optimizers",
+      "expected_content": ["adaptive moments", "bias correction"],
+      "expected_images": ["update equations"]
+    }
+  ]
+}

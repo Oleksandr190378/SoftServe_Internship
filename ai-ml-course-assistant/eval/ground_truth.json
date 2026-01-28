@@ -1,0 +1,191 @@
+{
+  "metadata": {
+    "created": "2026-01-08",
+    "version": "1.0",
+    "annotator": "manual",
+    "documents_indexed": 19,
+    "images_indexed": 142,
+    "queries_annotated": 10,
+    "annotation_notes": "Manual ground truth labels for Quick Start evaluation. Selected diverse query types to test retrieval across text, visual, and hybrid scenarios."
+  },
+  "queries": [
+    {
+      "id": 1,
+      "query": "Explain dropout regularization",
+      "query_type": "text_focused",
+      "category": "regularization",
+      "relevant_docs": [
+        "arxiv_1207_0580"
+      ],
+      "relevant_images": [
+        "arxiv_1207_0580_embedded_001",
+        "arxiv_1207_0580_embedded_002"
+      ],
+      "relevance_level": "high",
+      "notes": "Dropout paper by Hinton et al. Contains definition, math, and training curves showing test error reduction with dropout."
+    },
+    {
+      "id": 2,
+      "query": "Show Transformer model",
+      "query_type": "visual",
+      "category": "attention",
+      "relevant_docs": [
+        "arxiv_1706_03762",
+        "medium_illustrated-transformer"
+      ],
+      "relevant_images": [
+        "arxiv_1706_03762_embedded_001",
+        "arxiv_1706_03762_embedded_002",
+        "arxiv_1706_03762_embedded_003"
+      ],
+      "relevance_level": "high",
+      "notes": "Attention Is All You Need paper has full Transformer architecture diagram, scaled dot-product attention, and multi-head attention diagrams."
+    },
+    {
+      "id": 3,
+      "query": "What is attention mechanism? Show formula",
+      "query_type": "hybrid",
+      "category": "attention",
+      "relevant_docs": [
+        "arxiv_1706_03762",
+        "medium_illustrated-transformer"
+      ],
+      "relevant_images": [
+        "arxiv_1706_03762_embedded_002",
+        "arxiv_1706_03762_embedded_003"
+      ],
+      "relevance_level": "high",
+      "notes": "Hybrid query requiring both explanation and visual. Transformer paper has detailed attention mechanism with formulas and diagrams."
+    },
+    {
+      "id": 4,
+      "query": "Display GAN architecture",
+      "query_type": "visual",
+      "category": "generative",
+      "relevant_docs": [
+        "realpython_generative-adversarial-networks"
+      ],
+      "relevant_images": [
+        "realpython_generative-adversarial-networks_web_001",
+        "realpython_generative-adversarial-networks_web_002",
+        "realpython_generative-adversarial-networks_web_003"
+      ],
+      "relevance_level": "high",
+      "notes": "RealPython GAN tutorial with 12 images showing generator, discriminator, training process."
+    },
+    {
+      "id": 5,
+      "query": "Explain gradient descent",
+      "query_type": "text_focused",
+      "category": "optimization",
+      "relevant_docs": [
+        "realpython_gradient-descent-algorithm-python",
+        "medium_gradient-descent-variants"
+      ],
+      "relevant_images": [
+        "realpython_gradient-descent-algorithm-python_web_001",
+        "realpython_gradient-descent-algorithm-python_web_002"
+      ],
+      "relevance_level": "high",
+      "notes": "RealPython tutorial explains gradient descent with Python implementation. Medium article discusses variants (SGD, mini-batch, etc)."
+    },
+    {
+      "id": 6,
+      "query": "How to use NumPy arrays?",
+      "query_type": "text_focused",
+      "category": "tools",
+      "relevant_docs": [
+        "realpython_numpy-tutorial"
+      ],
+      "relevant_images": [
+        "realpython_numpy-tutorial_web_001",
+        "realpython_numpy-tutorial_web_002"
+      ],
+      "relevance_level": "high",
+      "notes": "RealPython NumPy tutorial covers array creation, indexing, operations with 8 images showing examples."
+    },
+    {
+      "id": 7,
+      "query": "Show image processing example",
+      "query_type": "visual",
+      "category": "computer_vision",
+      "relevant_docs": [
+        "realpython_image-processing-pillow",
+        "realpython_face-recognition-with-python"
+      ],
+      "relevant_images": [
+        "realpython_image-processing-pillow_web_037",
+        "realpython_image-processing-pillow_web_020",
+        "realpython_image-processing-pillow_web_005",
+        "realpython_image-processing-pillow_web_010",
+        "realpython_image-processing-pillow_web_029",
+        "realpython_image-processing-pillow_web_030",
+        "realpython_image-processing-pillow_web_032",
+        "realpython_image-processing-pillow_web_033",
+        "realpython_image-processing-pillow_web_034"
+      ],
+      "relevance_level": "high",
+      "notes": "Image processing with Pillow tutorial has 48 images showing filters, transformations, effects. Selected representative samples."
+    },
+    {
+      "id": 8,
+      "query": "How do AI agents plan tasks?",
+      "query_type": "text_focused",
+      "category": "agents",
+      "relevant_docs": [
+        "medium_agents-plan-tasks"
+      ],
+      "relevant_images": [
+        "medium_agents-plan-tasks_web_001"
+      ],
+      "relevance_level": "medium",
+      "notes": "Medium article on AI agent planning. Short article (5 chunks) with 2 images."
+    },
+    {
+      "id": 9,
+      "query": "Explain multi-head attention with diagram",
+      "query_type": "hybrid",
+      "category": "attention",
+      "relevant_docs": [
+        "arxiv_1706_03762"
+      ],
+      "relevant_images": [
+        "arxiv_1706_03762_embedded_003"
+      ],
+      "relevance_level": "high",
+      "notes": "Transformer paper Fig 2 (right) shows multi-head attention architecture with parallel attention layers."
+    },
+    {
+      "id": 10,
+      "query": "What is chunk size in RAG systems?",
+      "query_type": "text_focused",
+      "category": "rag",
+      "relevant_docs": [
+        "medium_chunk-size-rag-systems"
+      ],
+      "relevant_images": [],
+      "relevance_level": "medium",
+      "notes": "Medium article specifically about chunking strategies in RAG. No images (text-only article with 7 chunks)."
+    }
+  ],
+  "query_distribution": {
+    "by_type": {
+      "text_focused": 5,
+      "visual": 3,
+      "hybrid": 2
+    },
+    "by_relevance": {
+      "high": 9,
+      "medium": 1
+    },
+    "with_images": 9,
+    "without_images": 1
+  },
+  "validation_notes": [
+    "Covers diverse topics: attention, dropout, GANs, gradient descent, NumPy, image processing, agents, RAG",
+    "Balanced query types to test text retrieval, visual retrieval, and hybrid scenarios",
+    "Includes both arxiv papers and tutorials for varied writing styles",
+    "Image IDs follow format: {doc_id}_{extraction_method}_{number}",
+    "Relevance levels: high = primary source, medium = supplementary info"
+  ]
+}
