@@ -50,10 +50,8 @@ data/**/*
 # 4. Keep .gitkeep files for empty directories structure
 !**/.gitkeep
 
-# Docker test data (ignore test data but keep directory structure)
-docker_test_data/*
-!docker_test_data/.gitkeep
-!docker_test_data/README.md
+# Docker test data 
+docker_test_data/
 
 # Docker test logs
 docker_test_logs/
