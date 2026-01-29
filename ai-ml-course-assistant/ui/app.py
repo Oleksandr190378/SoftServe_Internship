@@ -570,8 +570,8 @@ def main():
         - `what is attention mechanism`
         - `what is activation function in neural network`
         - `how does multi-head -head attention work`
-        - 'what is vector database'
-        - 'What is the difference between word embeddings and text embeddings?'                        
+        - `what is vector database`
+        - `What is the difference between word embeddings and text embeddings?`                        
         """)
         
         st.markdown("---")

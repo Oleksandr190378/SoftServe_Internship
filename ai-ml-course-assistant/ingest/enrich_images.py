@@ -192,7 +192,6 @@ def _assemble_enriched_caption_text(
     Returns:
         Combined enriched caption text
     """
-    # STAGE 1: Validate inputs
     if not isinstance(author_caption, str):
         author_caption = ""
     if not isinstance(vlm_description, str):
@@ -340,7 +339,6 @@ def enrich_single_image(
     Returns:
         Updated metadata dict with enriched fields
     """
-    # STAGE 1: Parameter validation
     if not _validate_image_metadata(img_meta):
         return img_meta
     

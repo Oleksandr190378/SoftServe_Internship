@@ -43,6 +43,13 @@ TITLE_TRUNCATE_LENGTH = 60  # Max length for title display in logs
 
 CURATED_ARTICLES = [
     {
+        "url": "https://realpython.com/huggingface-transformers/",
+        "slug": "huggingface-transformers-python",
+        "title": "Using Transformers and Hugging Face to Solve NLP Tasks",
+        "topic": "Natural Language Processing",
+        "description": "A practical guide to leveraging the Hugging Face ecosystem for NLP, covering pre-trained models, pipelines, and fine-tuning for tasks like text classification and generation."
+     },
+    {
         "url": "https://realpython.com/chromadb-vector-database/",
         "slug": "chromadb-vector-database",
         "title": "Embeddings and Vector Databases With ChromaDB",

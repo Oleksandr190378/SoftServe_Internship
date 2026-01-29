@@ -42,6 +42,21 @@ MIN_CODE_LENGTH = 10  # Minimum length to consider as valid code snippet
 SPAM_TEXT_THRESHOLD = 100  # Max length of spam text (keywords section)
 
 CURATED_ARTICLES = [
+    
+    {
+        "url": "https://towardsdatascience.com/implementing-convolutional-neural-networks-in-tensorflow-bc1c4f00bd34/",
+        "slug": "implementing-cnn-tensorflow",
+        "title": "Implementing Convolutional Neural Networks in TensorFlow",
+        "topic": "Computer Vision",
+        "description": "A practical guide to building and training CNN models for image recognition using the TensorFlow framework."
+    },
+    {
+        "url": "https://towardsdatascience.com/what-do-large-language-models-understand-befdb4411b77/",
+        "slug": "what-llms-understand",
+        "title": "What Do Large Language Models Understand?",
+        "topic": "LLM Fundamentals",
+        "description": "An investigation into the internal representations and 'understanding' capabilities of transformer-based models."
+    },
     {
         "url": "https://towardsdatascience.com/doing-evals-on-a-bloated-rag-pipeline/",
         "slug": "running-evals-rag-pipeline",
