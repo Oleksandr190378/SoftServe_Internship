@@ -200,7 +200,6 @@ def extract_figure_caption(text_blocks: List[Dict], image_bbox: fitz.Rect) -> Op
     Returns:
         Caption string or None if not found
     """
-    # STAGE 1: Parameter validation
     if not isinstance(text_blocks, list):
         logging.error(f"text_blocks must be list, got {type(text_blocks).__name__}")
         return None
@@ -253,7 +252,6 @@ def extract_full_caption_text(block: Dict, starting_line: Dict, max_length: int 
     Returns:
         Full caption text
     """
-    # STAGE 1: Parameter validation
     if not isinstance(block, dict) or 'lines' not in block:
         logging.warning("Invalid block structure")
         return ""
@@ -265,15 +263,13 @@ def extract_full_caption_text(block: Dict, starting_line: Dict, max_length: int 
     if max_length < 1:
         logging.warning(f"Invalid max_length {max_length}")
         return ""
-    
-    # STAGE 2: Use helper function to find line
+
     start_idx = _find_line_index(block, starting_line)
     
     if start_idx == -1:
         logging.warning("Starting line not found in block")
         return ""
-    
-    # STAGE 3: Use helper function to extract text
+
     return _extract_text_from_lines(block.get('lines', []), start_idx, max_length)
 
 
@@ -289,7 +285,6 @@ def _extract_sentence_boundary_from_text(text: str, max_chars: int = CONTEXT_MAX
     Returns:
         Extracted text up to sentence boundary
     """
-    # STAGE 1: Parameter validation
     if not isinstance(text, str):
         logging.warning(f"text must be str, got {type(text).__name__}")
         return ""
@@ -300,8 +295,7 @@ def _extract_sentence_boundary_from_text(text: str, max_chars: int = CONTEXT_MAX
     if max_chars < 1:
         logging.warning(f"max_chars must be >= 1, got {max_chars}")
         return ""
-    
-    # STAGE 3: Delegate to specialized functions
+
     if from_end:
         return _extract_sentence_from_end(text, max_chars)
     else:
@@ -318,15 +312,13 @@ def _group_text_into_paragraphs(text_items: List[Dict]) -> List[Tuple[str, float
     Returns:
         List of (paragraph_text, start_y, end_y) tuples
     """
-    # STAGE 1: Parameter validation
     if not isinstance(text_items, list):
         logging.warning(f"text_items must be list, got {type(text_items).__name__}")
         return []
     
     if not text_items:
         return []
-    
-    # Validate first item structure
+
     if not isinstance(text_items[0], dict) or 'y0' not in text_items[0]:
         logging.warning("Invalid text_items structure")
         return []
@@ -385,7 +377,7 @@ def _extract_context_from_previous_page(doc, page_num: int, max_chars: int = CON
     Returns:
         Context text from previous page (last paragraph or sentence)
     """
-    # STAGE 1: Parameter validation
+
     if page_num <= 0:
         return ""
     
@@ -400,7 +392,6 @@ def _extract_context_from_previous_page(doc, page_num: int, max_chars: int = CON
     try:
         prev_page = doc[page_num - 1]
         
-        # STAGE 3: DRY - use helper function
         text_items = _collect_text_blocks_from_page(prev_page)
         
         if not text_items:
@@ -449,7 +440,6 @@ def extract_surrounding_context(
             "figure_caption": "Figure X: ..." or None
         }
     """
-    # STAGE 1: Parameter validation
     if page is None:
         logging.error("page is None")
         return {"before": "", "after": "", "figure_caption": None}
@@ -469,10 +459,8 @@ def extract_surrounding_context(
         logging.error(f"Failed to extract text from page: {e}")
         return {"before": "", "after": "", "figure_caption": None}
 
-    # STAGE 3: Use helper function
     figure_caption = extract_figure_caption(blocks, image_bbox)
 
-    # STAGE 3: DRY - use helper function for text collection
     text_with_positions = _collect_text_blocks_from_page(page)
     
     if not text_with_positions:

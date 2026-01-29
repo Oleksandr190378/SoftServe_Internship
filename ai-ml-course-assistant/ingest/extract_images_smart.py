@@ -302,18 +302,15 @@ def detect_vector_graphics_regions(page) -> List[fitz.Rect]:
     """
     Detect regions with vector graphics (drawings, paths).
     Returns list of bounding rectangles.
-    
-    STAGE 1: Validation - handle None/empty safely
+
     """
-    # STAGE 1: Parameter validation
     if page is None:
         logging.warning("page is None in detect_vector_graphics_regions")
         return []
     
     try:
         drawings = page.get_drawings()
-        
-        # STAGE 1: Check if drawings exists and is iterable
+ 
         if not drawings:
             return []
         
@@ -424,7 +421,6 @@ def extract_vector_graphics(
     
     Validation - validate DPI, min_size, and handle errors gracefully
     """
-    # STAGE 1: Parameter validation
     if pdf_document is None:
         logging.error("pdf_document is None")
         return []
@@ -436,8 +432,7 @@ def extract_vector_graphics(
     if not doc_id or not isinstance(doc_id, str):
         logging.error(f"doc_id must be non-empty string")
         return []
-    
-    # STAGE 1: Validate DPI - cannot be 0 or negative
+
     if dpi <= 0:
         logging.warning(f"Invalid DPI {dpi}, using default {DPI}")
         dpi = DPI
@@ -542,7 +537,7 @@ def extract_images_smart(
     dpi: int = DPI
 ) -> List[Dict]:
     """
-    Smart extraction: embedded images + vector graphics regions only.
+    Smart extraction:  images + vector graphics regions only.
     
     Error Handling Strategy: Logs errors and returns partial results.
     - PDF corruption or parse errors → Logs error, returns empty list

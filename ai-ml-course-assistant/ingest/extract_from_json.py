@@ -12,6 +12,7 @@ Usage:
 """
 
 import os
+import re
 import json
 import logging
 import requests
@@ -48,6 +49,7 @@ POSITION_ESTIMATE_BUFFER = 5  # Buffer for proportional position estimation
 
 # Sentence boundary markers
 SENTENCE_END_MARKERS = ['. ', '.\n', '! ', '!\n', '? ', '?\n']
+SENTENCE_SPLIT_PATTERN = r'(?<=[.!?])\s+(?=[A-ZА-ЯІЄЇ])'
 
 # Generic caption patterns that indicate non-technical/decorative images
 GENERIC_CAPTION_PATTERNS = [
@@ -235,7 +237,7 @@ def _should_skip_context(caption: str, vlm_description: str = "") -> bool:
     return False
 
 
-def _extract_sentence_boundary(text: str, position: int, direction: str = "before") -> str:
+'''def _extract_sentence_boundary(text: str, position: int, direction: str = "before") -> str:
     """
     Extract text up to nearest sentence boundary from position.
     
@@ -288,7 +290,31 @@ def _extract_sentence_boundary(text: str, position: int, direction: str = "befor
             if idx != -1 and idx < first_boundary:
                 first_boundary = idx + 1
         
-        return chunk[:first_boundary].strip()
+        return chunk[:first_boundary].strip()'''
+
+
+
+def _extract_sentence_boundary(text: str, position: int, direction: str = "before") -> str:
+    if not text or not isinstance(text, str):
+        return ""
+
+    text_len = len(text)
+    position = max(0, min(position, text_len))
+
+    if direction == "before":
+        start = max(0, position - CONTEXT_LOOK_BACK_CHARS)
+        chunk = text[start:position]
+        sentences = re.split(r'(?<=[.!?])\s+', chunk)
+        if sentences:
+            return sentences[-1].strip() 
+
+    else:
+        end = min(text_len, position + CONTEXT_LOOK_FORWARD_CHARS)
+        chunk = text[position:end]
+        match = re.search(r'[^.!?]+[.!?]', chunk)
+        if match:
+            return match.group().strip()
+        return chunk.strip()
 
 
 def _find_position_by_keywords(full_text: str, caption: str, alt_text: str, image_index: int) -> int:
@@ -304,14 +330,12 @@ def _find_position_by_keywords(full_text: str, caption: str, alt_text: str, imag
     Returns:
         Position in text (-1 if not found)
     """
-    # STAGE 1: Validation
     if not full_text or not isinstance(full_text, str):
         return -1
     
     if image_index < 1:
         image_index = 1
-    
-    # STAGE 3: DRY - helper function to try search
+
     def _try_search(search_text: str) -> int:
         if not search_text or not isinstance(search_text, str):
             return -1
@@ -319,17 +343,14 @@ def _find_position_by_keywords(full_text: str, caption: str, alt_text: str, imag
         search_text = search_text.strip()[:SKIP_CAPTION_MAX_LENGTH]
         if not search_text:
             return -1
-        
-        # Try exact match
+
         pos = full_text.find(search_text)
         if pos != -1:
             return pos
-        
-        # Try case-insensitive
+
         pos = full_text.lower().find(search_text.lower())
         return pos if pos != -1 else -1
-    
-    # Try multiple search strategies
+
     search_texts = []
     
     if caption and isinstance(caption, str):
@@ -341,29 +362,19 @@ def _find_position_by_keywords(full_text: str, caption: str, alt_text: str, imag
     
     if alt_text and isinstance(alt_text, str):
         search_texts.append(alt_text)
-    
-    # Try each search text
+
     for search_text in search_texts:
         pos = _try_search(search_text)
         if pos != -1:
             return pos
-    
-    # STAGE 1: Fallback with proper boundary checking
-    paragraphs = full_text.split('\n\n')
-    
+
+    paragraphs = [p.strip() for p in full_text.split('\n\n') if p.strip()]
     if paragraphs and len(paragraphs) > 0:
-        # Safely access paragraph
         para_index = min(image_index - 1, len(paragraphs) - 1)
-        target_para = paragraphs[para_index] if para_index >= 0 else paragraphs[0]
+        target_para = paragraphs[para_index] 
         pos = full_text.find(target_para)
         if pos != -1:
             return pos
-    
-    # Last resort: proportional estimation with proper validation
-    text_length = len(full_text)
-    if text_length > 0:
-        return int((image_index / (image_index + POSITION_ESTIMATE_BUFFER)) * text_length)
-    
     return -1
 
 
@@ -634,7 +645,6 @@ def extract_json_document(doc_id: str, output_dir: Path = DEFAULT_OUTPUT_DIR) ->
         ValueError: If doc_id is invalid
         FileNotFoundError: If JSON file not found
     """
-    # STAGE 1: Validation
     if not doc_id or not isinstance(doc_id, str):
         raise ValueError(f"doc_id must be non-empty string")
     
@@ -667,7 +677,6 @@ def extract_json_document(doc_id: str, output_dir: Path = DEFAULT_OUTPUT_DIR) ->
     
     logging.info(f"Extracted {len(images_metadata)} images, {len(full_text)} chars from {doc_id}")
 
-    # Save metadata
     metadata_file = output_dir.parent / "images_metadata.json"
     _save_images_metadata(images_metadata, doc_id, metadata_file)
     

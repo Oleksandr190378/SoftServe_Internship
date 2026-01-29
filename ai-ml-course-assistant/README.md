@@ -115,29 +115,23 @@ Choose one or more data sources:
 
 **Option A: Download arXiv Papers**
 ```bash
-cd ingest
-python download_arxiv.py
+
+python -m ingest.download_arxiv
 ```
 Downloads ~30 arXiv papers on deep learning and machine learning.
 
 **Option B: Download Medium/TDS Articles**
 ```bash
-python download_medium.py
+python -m ingest.download_medium 
 ```
 Downloads ~10 tutorial articles with explanations and examples.
 
 **Option C: Download RealPython Tutorials**
 ```bash
-python download_realpython.py
+python -m ingest.download_realpython --num-articles 9
 ```
 Downloads ~9 Python ML tutorials with code examples.
 
-**Download All Sources**
-```bash
-# From project root
-cd ingest
-python download_arxiv.py && python download_medium.py && python download_realpython.py
-```
 
 ### Step 2: Process Documents
 
