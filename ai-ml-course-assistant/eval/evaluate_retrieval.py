@@ -27,7 +27,7 @@ import os
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from rag.retriever import MultimodalRetriever
+from rag.retrieve import MultimodalRetriever
 
 # Configuration constants
 DEFAULT_CHROMA_DIR = "data/chroma_db"
@@ -37,8 +37,8 @@ DEFAULT_K_VALUES = [3, 5, 10]
 
 # Evaluation targets (from PRD spec)
 TARGET_RECALL_AT_5 = 0.70
-TARGET_IMAGE_RECALL = 0.60  # Changed from hit_rate to recall for consistency
-TARGET_MRR = 0.5  # PRD spec: ≥0.5
+TARGET_IMAGE_RECALL = 0.60  
+TARGET_MRR = 0.5  
 
 # Result storage limits
 MAX_STORED_DOC_IDS = 10
@@ -199,7 +199,7 @@ class RetrievalEvaluator:
     
     def evaluate_query(self, query_data: dict, k_values: List[int] = [3, 5, 10]) -> QueryMetrics:
         """
-        Orchestrate single query evaluation (refactored for SRP).
+        Orchestrate single query evaluation .
         
         Args:
             query_data: Ground truth query data

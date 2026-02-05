@@ -120,7 +120,7 @@ def chunk_document_with_image_tracking(
     is_pdf = total_pages > 0
     is_json = any(img.get('extraction_method') == 'web_download' for img in images_metadata)
     
-    # STAGE 1: Validate chunk parameters
+    #  Validate chunk parameters
     if chunk_size <= 0:
         raise ValueError(f"chunk_size must be > 0, got {chunk_size}")
     if chunk_overlap < 0:
@@ -214,13 +214,11 @@ def chunk_document_with_image_tracking(
     return chunks_with_metadata
 
 
-# Removed chunk_all_documents() - replaced by integration into run_pipeline.py
-# This function expected files on disk, but we process in-memory in the pipeline
-
 
 if __name__ == "__main__":
     # Simple test with mock data
-    logging.basicConfig(level=logging.INFO)
+    from utils.logging_config import setup_logging
+    setup_logging()
     
     # Test JSON document (no pages)
     test_text = "Sample text for testing chunking. " * 200  # ~6000 chars

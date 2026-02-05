@@ -8,8 +8,8 @@
 
 The AI/ML Course Assistant implements a two-stage RAG system:
 
-1. **Retriever Module** (`rag/retriever.py`) - Intelligent data filtering and semantic search
-2. **Generator Module** (`rag/generator.py`) - Grounded answer generation with citations
+1. **Retriever Module** (`rag/retrieve/`) - Intelligent data filtering and semantic search
+2. **Generator Module** (`rag/generate`) - Grounded answer generation with citations
 
 This document explains how each component works and how they interact to produce accurate, citation-backed answers.
 
@@ -390,12 +390,12 @@ Structured LLM Input JSON
 
 ---
 
-## Part 2: Generator Module (Intelligent Processing & Answers)
+## Part 2: Generate Module (Intelligent Processing & Answers)
 
 ### Architecture Diagram
 
 ```
-Prepared LLM Input (from Retriever)
+Prepared LLM Input (from Retrieve)
     ↓
 [1] System Prompt Loading
     └─ Strict grounding rules
@@ -412,9 +412,9 @@ Prepared LLM Input (from Retriever)
     └─ Format: [1] chunk_id...[A] image_id...
     ↓
 [4] LLM Inference
-    ├─ Model: GPT-5 Nano
+    ├─ Model: GPT-5 Mini
     ├─ Temperature: 0.0 (deterministic)
-    ├─ Max tokens: 33,000
+    ├─ Max tokens: 120,000
     └─ Reasoning effort: "low"
     ↓
 [5] Output Parsing
@@ -482,7 +482,7 @@ Final Answer:
 
 **Implementation:**
 ```python
-# Model: GPT-5 Nano with reasoning support
+# Model: GPT-5 Mini with reasoning support
 response = llm.invoke([
     SystemMessage(content=SYSTEM_PROMPT),
     HumanMessage(content=formatted_context)
@@ -716,8 +716,8 @@ Output: Grounded answer with valid citations
 | Text retrieval (MMR) | ~0.5s | ChromaDB query + ranking |
 | Batch embeddings | ~1.0s | Single OpenAI API call |
 | Image verification | ~0.5s | Semantic matching (numpy) |
-| LLM generation | ~3-5s | GPT-5 Nano inference |
-| **Total** | **~5-7s** | End-to-end query to answer |
+| LLM generation | ~5-10s | GPT-5 Mini inference |
+| **Total** | **~5-15s** | End-to-end query to answer |
 
 ### Accuracy
 | Metric | Target | Achieved |
@@ -859,11 +859,11 @@ LOW (0.5-0.59):   "This image might relate, but uncertain"
 
 - OpenAI Embeddings: `text-embedding-3-small` (1536 dimensions)
 - ChromaDB: Vector database with metadata filtering
-- GPT-5 Nano: Language model with reasoning support (TEMPERATURE=0.0)
+- GPT-5 Mini: Language model with reasoning support (TEMPERATURE=0.0)
 - Cosine Similarity: Standard metric for semantic search
 - MMR Algorithm: Maximal Marginal Relevance (λ=0.7)
 
 ---
 
-**Last Updated:** January 19, 2026  
+**Last Updated:** January 26, 2026  
 **Status:** Production Ready ✅

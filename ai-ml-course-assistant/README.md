@@ -1,6 +1,6 @@
 # 🎓 AI/ML Course Assistant - Multimodal RAG System
 
-A production-ready **Retrieval-Augmented Generation (RAG)** system designed to help students and educators learn AI/ML concepts through intelligent retrieval of text and images (diagrams, architectures, equations) from academic papers and tutorials.
+A production-ready **Retrieval-Augmented Generation (RAG)** system for AI/ML education, combining text and image (multimodal) retrieval from academic papers and tutorials. Uses ChromaDB vector database, OpenAI embeddings, and a Streamlit web UI for interactive, grounded answers with citations.
 
 **🚀 Status:** Production Ready - All Phases Complete ✅
 
@@ -21,19 +21,7 @@ A production-ready **Retrieval-Augmented Generation (RAG)** system designed to h
 | **Streamlit Web Interface** | ✅ | Interactive query interface with inline image display |
 | **Comprehensive Testing** | ✅ | Unit tests, retrieval evaluation, ground truth validation |
 
----
 
-## 📊 Performance Metrics
-
-| Metric | Target | Current | Status |
-|--------|--------|---------|--------|
-| **Recall@5 (text)** | ≥70% | **95.0%** | ✅ |
-| **Image Hit Rate** | ≥60% | **88.9%** | ✅ |
-| **Mean Reciprocal Rank** | ≥0.70 | **1.000** | ✅ |
-| **Indexed Documents** | 54 | **54** | ✅ |
-| **Processed Documents** | - | **19** | ✅ |
-| **Total Text Chunks** | - | **369** | ✅ |
-| **Total Images** | - | **142** | ✅ |
 
 ---
 
@@ -57,13 +45,29 @@ A production-ready **Retrieval-Augmented Generation (RAG)** system designed to h
 
 ## 🚀 Installation
 
-### 1. Clone or Navigate to Project
+### Quick Setup (Recommended)
+
+**Windows users:** Run the automated setup script:
+```bash
+.\setup.bat
+```
+
+This will:
+- ✅ Check Python version (3.10+)
+- ✅ Create virtual environment
+- ✅ Copy `.env.example` to `.env`
+- ✅ Create data directories
+- ✅ Install all dependencies
+
+### Manual Setup
+
+**1. Clone or Navigate to Project**
 
 ```bash
 cd c:\Users\Користувач\Documents\python_1\softserve\SoftServe_Internship\ai-ml-course-assistant
 ```
 
-### 2. Create Virtual Environment
+**2. Create Virtual Environment**
 
 ```bash
 # Windows
@@ -75,29 +79,31 @@ python -m venv venv
 source venv/bin/activate
 ```
 
-### 3. Install Dependencies
+**3. Install Dependencies**
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Configure Environment Variables
+**4. Configure Environment Variables**
 
-The `.env` file is pre-configured with all necessary keys:
+Create `.env` file from template:
 ```bash
-# Keys already set:
-# - OPENAI_API_KEY
-# - CHROMA_DB_PATH
-# - DATA_DIR
-# And more...
+# Windows
+copy .env.example .env
+
+# macOS/Linux
+cp .env.example .env
 ```
 
-If needed, verify `.env` contains:
+Edit `.env` and add your OpenAI API key:
 ```env
 OPENAI_API_KEY=your_openai_api_key_here
 CHROMA_DB_PATH=./data/chroma_db
 DATA_DIR=./data
 ```
+
+**Get your API key:** https://platform.openai.com/api-keys
 
 ---
 
@@ -109,29 +115,23 @@ Choose one or more data sources:
 
 **Option A: Download arXiv Papers**
 ```bash
-cd ingest
-python download_arxiv.py
+
+python -m ingest.download_arxiv
 ```
 Downloads ~30 arXiv papers on deep learning and machine learning.
 
 **Option B: Download Medium/TDS Articles**
 ```bash
-python download_medium.py
+python -m ingest.download_medium 
 ```
 Downloads ~10 tutorial articles with explanations and examples.
 
 **Option C: Download RealPython Tutorials**
 ```bash
-python download_realpython.py
+python -m ingest.download_realpython --num-articles 9
 ```
 Downloads ~9 Python ML tutorials with code examples.
 
-**Download All Sources**
-```bash
-# From project root
-cd ingest
-python download_arxiv.py && python download_medium.py && python download_realpython.py
-```
 
 ### Step 2: Process Documents
 
@@ -206,19 +206,29 @@ ai-ml-course-assistant/
 │   └── extract_image_context.py      # Image context extraction
 │
 ├── rag/                              # Retrieval & Generation
-│   ├── retriever.py                  # MMR search + semantic verification ✅
-│   └── generator.py                  # GPT-5 Nano answer generation ✅
+│   ├── retrieve/                     # Retrieval package (4 modules)
+│   │   ├── retriever.py              # MMR search orchestration
+│   │   ├── text_retriever.py         # Text chunk retrieval
+│   │   ├── image_retriever.py        # Image verification & ranking
+│   │   └── result_formatter.py       # Result preparation
+│   └── generate/                     # Generation package (5 modules)
+│       ├── generator.py              # Answer generation orchestration
+│       ├── context_formatter.py      # LLM context preparation
+│       ├── llm_caller.py             # OpenAI API wrapper
+│       ├── output_parser.py          # Response parsing & validation
+│       └── citation_validator.py     # Citation verification
 │
 ├── ui/
 │   ├── app.py                        # Streamlit web interface ✅
 │   └── assets/                       # UI images/icons
 │
-├── test/                             # Testing & Validation
-│   ├── test_rag/
-│   │   └── test_retriever.py         # Unit tests for retriever
-│   ├── test_ingest/
-│   │   └── ...                       # Tests for ingest modules
-│   └── conftest.py                   # Pytest configuration
+├── test/                             # Testing & Validation (331 tests)
+│   ├── conftest.py                   # Pytest configuration & fixtures
+│   ├── README.md                     # Test suite documentation
+│   ├── test_ingest/                  # Ingest module tests (88 tests)
+│   ├── test_index/                   # Index module tests (83 tests)
+│   ├── test_rag/                     # RAG module tests (63 tests)
+│   └── test_ui/                      # UI tests (100 tests)
 │
 ├── eval/                             # Evaluation Framework
 │   ├── evaluate_retrieval.py         # Metrics: Recall@k, Precision@k, MRR ✅
@@ -237,9 +247,15 @@ ai-ml-course-assistant/
 │
 ├── run_pipeline.py                   # Main CLI for document processing ✅
 ├── run_app.bat                       # Batch script to run Streamlit UI
+├── setup.bat                         # Automated setup script (Windows) ✅
 ├── requirements.txt                  # Python dependencies
+├── pytest.ini                        # Pytest configuration ✅
 ├── .env                              # Environment variables (API keys)
 ├── .env.example                      # Environment template
+├── .gitignore                        # Git ignore rules
+├── .github/
+│   └── workflows/
+│       └── test.yml                  # CI/CD automated testing ✅
 └── README.md                         # This file
 ```
 
@@ -247,18 +263,34 @@ ai-ml-course-assistant/
 
 ## 🧪 Testing & Evaluation
 
-### Run Unit Tests
+### Run Unit Tests (331 tests)
+
+Test configuration is in [pytest.ini](pytest.ini). All tests are organized by module and follow SOLID principles.
 
 ```bash
-# All tests
-python -m pytest test/ -v
+# All tests (331 tests)
+pytest test/ -v
 
 # Specific module
-python -m pytest test/test_rag/ -v
+pytest test/test_ingest/ -v    # Ingest tests (88)
+pytest test/test_index/ -v     # Index tests (83)
+pytest test/test_rag/ -v       # RAG tests (63)
+pytest test/test_ui/ -v        # UI tests (100)
 
-# Coverage report
-python -m pytest test/ --cov=. --cov-report=html
+# By test category
+pytest test/ -m stage1 -v      # Critical validation tests
+pytest test/ -m "rag and stage2" -v  # RAG exception handling
+
+# Stop on first failure
+pytest test/ -x -v
 ```
+
+**Test Statistics:**
+- ✅ **331 tests** total
+- ✅ **100% passing**
+- ✅ Covers all modules: ingest, index, rag, ui
+
+For detailed test documentation, see [test/README.md](test/README.md).
 
 ### Validate Ground Truth
 
@@ -288,9 +320,12 @@ python eval/evaluate_retrieval.py
 - Image retrieval statistics
 - Results saved to `eval/results/retrieval_eval_<timestamp>.json`
 
-### Test Commands Reference
+### Continuous Integration
 
-See [test/COMMANDS.md](test/COMMANDS.md) for advanced testing options.
+Automated testing runs on every push via [GitHub Actions](.github/workflows/test.yml):
+- ✅ Tests on Ubuntu & Windows
+- ✅ Python 3.10, 3.11, 3.12
+- ✅ Code quality checks (flake8, black, isort)
 
 ---
 
@@ -300,12 +335,9 @@ For detailed information, see:
 
 | Document | Purpose |
 |----------|---------|
-| **[QUICKSTART.md](docs/QUICKSTART.md)** | 5-minute setup and basic usage |
 | **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** | Deep dive: Retriever & Generator modules, anti-hallucination mechanisms |
-| **[PIPELINE_GUIDE.md](docs/PIPELINE_GUIDE.md)** | Detailed document processing pipeline |
 | **[PRD.md](docs/PRD.md)** | Product requirements and success metrics |
 | **[data_sources.md](docs/data_sources.md)** | Complete catalog of 54 data sources |
-| **[retrieval_strategy_analysis.md](docs/retrieval_strategy_analysis.md)** | MMR vs similarity search comparison |
 | **[ROADMAP.md](docs/ROADMAP.md)** | Development phases and milestones |
 
 ---
@@ -343,7 +375,7 @@ python run_pipeline.py status
 ### 2. Generation Pipeline
 
 1. **Context Preparation** → Format retrieved text + images into structured LLM input
-2. **Grounded LLM Inference** → GPT-5 Nano with TEMPERATURE=0.0 (no randomness)
+2. **Grounded LLM Inference** → OpenAI gpt-5-mini with TEMPERATURE=0.0 (no randomness)
 3. **Few-Shot Prompting** → 2 complete examples showing correct citation behavior
 4. **Answer Formatting** → Structured output with [1][2][A][B] citations
 5. **Citation Validation** → Remove hallucinated references, ensure Answer-Sources sync
@@ -396,9 +428,9 @@ python run_pipeline.py status
    - Review inline images and citations
 
 3. **Understand the System:**
-   - Read [PIPELINE_GUIDE.md](docs/PIPELINE_GUIDE.md) for processing details
    - Review [PRD.md](docs/PRD.md) for success metrics
    - Check [data_sources.md](docs/data_sources.md) for available documents
+   - Read [ARCHITECTURE.md](docs/ARCHITECTURE.md) for technical deep dive
 
 4. **Extend the System:**
    - Add more data sources in `ingest/`
@@ -425,15 +457,7 @@ This is an educational project demonstrating production RAG systems.
 **Project:** AI/ML Course Assistant  
 **Domain:** Multimodal RAG System  
 **Status:** Production Ready ✅  
-**Last Updated:** January 19, 2026  
-
-**Key Achievements:**
-- ✅ 54 data sources curated
-- ✅ 19 documents fully processed (369 chunks, 142 images)
-- ✅ Retrieval: Recall@5=95%, Image Hit Rate=88.9%
-- ✅ Generation: Zero hallucinations with citation grounding
-- ✅ Comprehensive evaluation framework
-- ✅ Production Streamlit interface
+**Last Updated:** January 27, 2026  
 
 ---
 
@@ -456,3 +480,57 @@ Educational project for learning purposes.
 ---
 
 **Ready to use! Start with [Quick Start](#-quick-start-3-steps) section above.** 🚀
+
+
+---
+
+## 🐳 Docker Deployment
+
+### Current Setup (Single Container)
+
+The application is containerized and ready for deployment:
+
+```bash
+# Navigate to docker directory
+cd docker
+
+# Build and run container
+docker-compose up --build
+
+# Access the app at http://localhost:8501
+```
+
+**Architecture:**
+```
+┌─────────────────────────────────────┐
+│   Docker Container (Streamlit)      │
+│  ┌──────────────────────────────┐  │
+│  │   Streamlit UI (ui/app.py)   │  │
+│  │  - Query interface           │  │
+│  │  - Retrieval & Generation    │  │
+│  │  - Citation display          │  │
+│  └──────────────────────────────┘  │
+│        ↓ (semantic search)          │
+│  ┌──────────────────────────────┐  │
+│  │  ChromaDB (data/chroma_db/)  │  │
+│  │  - Text chunks indexed       │  │
+│  │  - Image captions indexed    │  │
+│  └──────────────────────────────┘  │
+└─────────────────────────────────────┘
+```
+
+**Prerequisites:**
+- Documents must be processed and indexed **before** running Docker
+- ChromaDB must be populated in `../data/chroma_db/`
+- Run `python run_pipeline.py process --all --no-vlm` on host first
+
+**For detailed instructions, see:** [docker/README.md](docker/README.md)
+
+### Future: Multi-Container Architecture
+
+Planned upgrade for production scalability:
+- Separate containers for processing, indexing, and UI
+- Multiple UI replicas for load balancing
+- Isolated document processing pipeline
+- See [docker/DOCKER.md](docker/DOCKER.md) for roadmap
+

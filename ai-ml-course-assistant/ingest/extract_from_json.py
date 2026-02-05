@@ -12,6 +12,7 @@ Usage:
 """
 
 import os
+import re
 import json
 import logging
 import requests
@@ -26,16 +27,10 @@ except ImportError:
     exit(1)
 
 import io
+from utils.logging_config import setup_logging
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%H:%M:%S'
-)
+setup_logging()
 
-# ============================================================================
-# CONFIGURATION CONSTANTS - STAGE 2: Constants instead of magic numbers
-# ============================================================================
 DEFAULT_RAW_REALPYTHON_DIR = Path(__file__).parent.parent / "data" / "raw" / "realpython"
 DEFAULT_RAW_MEDIUM_DIR = Path(__file__).parent.parent / "data" / "raw" / "medium"
 DEFAULT_OUTPUT_DIR = Path(__file__).parent.parent / "data" / "processed" / "images"
@@ -54,6 +49,7 @@ POSITION_ESTIMATE_BUFFER = 5  # Buffer for proportional position estimation
 
 # Sentence boundary markers
 SENTENCE_END_MARKERS = ['. ', '.\n', '! ', '!\n', '? ', '?\n']
+SENTENCE_SPLIT_PATTERN = r'(?<=[.!?])\s+(?=[A-ZА-ЯІЄЇ])'
 
 # Generic caption patterns that indicate non-technical/decorative images
 GENERIC_CAPTION_PATTERNS = [
@@ -86,8 +82,7 @@ NON_TECHNICAL_INDICATORS = [
 def detect_source_type(doc_id: str) -> str:
     """
     Detect source type from doc_id prefix.
-    
-    STAGE 1: Validation - validate input parameters
+
     """
     if not doc_id or not isinstance(doc_id, str):
         raise ValueError(f"doc_id must be non-empty string, got: {type(doc_id).__name__}")
@@ -103,8 +98,6 @@ def detect_source_type(doc_id: str) -> str:
 def _validate_json_file(json_file: Path) -> Dict:
     """
     Load and validate JSON file with proper error handling.
-    
-    STAGE 2: Exception Handling - pattern from run_pipeline.py
     
     Args:
         json_file: Path to JSON file
@@ -132,9 +125,6 @@ def _validate_json_file(json_file: Path) -> Dict:
 def find_json_file(doc_id: str) -> Path:
     """
     Find JSON file for given doc_id in raw/realpython or raw/medium directories.
-    
-    STAGE 1: Validation - returns Path instead of Optional[Path], error raised explicitly
-    ЕТАП 2: Proper error handling
     
     Args:
         doc_id: Document identifier
@@ -170,13 +160,6 @@ def find_json_file(doc_id: str) -> Path:
 def download_image_from_url(url: str, output_path: Path) -> Optional[Dict]:
     """
     Download image from URL and save to output_path.
-    
-    STAGE 2: Exception Handling - good example
-    
-    Error Handling Strategy: Returns None for recoverable failures.
-    - Network errors (timeout, 404) → None (skip this image, continue processing)
-    - Image format errors → None (invalid image, skip it)
-    - Caller should check for None and handle gracefully
     
     Args:
         url: Image URL to download
@@ -229,9 +212,6 @@ def _should_skip_context(caption: str, vlm_description: str = "") -> bool:
     1. Caption indicates decorative/non-technical image ("Image by author", generic captions)
     2. VLM description indicates non-technical content
     
-    STAGE 2: Constants - using GENERIC_CAPTION_PATTERNS and NON_TECHNICAL_INDICATORS
-    STAGE 1: Validation - check for empty values
-    
     Args:
         caption: Image caption/alt text
         vlm_description: Optional VLM-generated description
@@ -257,13 +237,9 @@ def _should_skip_context(caption: str, vlm_description: str = "") -> bool:
     return False
 
 
-def _extract_sentence_boundary(text: str, position: int, direction: str = "before") -> str:
+'''def _extract_sentence_boundary(text: str, position: int, direction: str = "before") -> str:
     """
     Extract text up to nearest sentence boundary from position.
-    
-    STAGE 1: Validation - check boundary conditions
-    STAGE 2: Constants - magic numbers replaced with constants
-    STAGE 3: KISS - simplified logic
     
     Args:
         text: Full text
@@ -314,17 +290,37 @@ def _extract_sentence_boundary(text: str, position: int, direction: str = "befor
             if idx != -1 and idx < first_boundary:
                 first_boundary = idx + 1
         
-        return chunk[:first_boundary].strip()
+        return chunk[:first_boundary].strip()'''
+
+
+
+def _extract_sentence_boundary(text: str, position: int, direction: str = "before") -> str:
+    if not text or not isinstance(text, str):
+        return ""
+
+    text_len = len(text)
+    position = max(0, min(position, text_len))
+
+    if direction == "before":
+        start = max(0, position - CONTEXT_LOOK_BACK_CHARS)
+        chunk = text[start:position]
+        sentences = re.split(r'(?<=[.!?])\s+', chunk)
+        if sentences:
+            return sentences[-1].strip() 
+
+    else:
+        end = min(text_len, position + CONTEXT_LOOK_FORWARD_CHARS)
+        chunk = text[position:end]
+        match = re.search(r'[^.!?]+[.!?]', chunk)
+        if match:
+            return match.group().strip()
+        return chunk.strip()
 
 
 def _find_position_by_keywords(full_text: str, caption: str, alt_text: str, image_index: int) -> int:
     """
     Find image position using keyword search and heuristics.
-    
-    STAGE 1: Validation - check edge cases, validate parameters
-    STAGE 2: Constants - magic numbers replaced with constants
-    STAGE 3: KISS - simplified and more understandable logic
-    
+  
     Args:
         full_text: Complete document text
         caption: Image caption
@@ -334,14 +330,12 @@ def _find_position_by_keywords(full_text: str, caption: str, alt_text: str, imag
     Returns:
         Position in text (-1 if not found)
     """
-    # STAGE 1: Validation
     if not full_text or not isinstance(full_text, str):
         return -1
     
     if image_index < 1:
         image_index = 1
-    
-    # STAGE 3: DRY - helper function to try search
+
     def _try_search(search_text: str) -> int:
         if not search_text or not isinstance(search_text, str):
             return -1
@@ -349,17 +343,14 @@ def _find_position_by_keywords(full_text: str, caption: str, alt_text: str, imag
         search_text = search_text.strip()[:SKIP_CAPTION_MAX_LENGTH]
         if not search_text:
             return -1
-        
-        # Try exact match
+
         pos = full_text.find(search_text)
         if pos != -1:
             return pos
-        
-        # Try case-insensitive
+
         pos = full_text.lower().find(search_text.lower())
         return pos if pos != -1 else -1
-    
-    # Try multiple search strategies
+
     search_texts = []
     
     if caption and isinstance(caption, str):
@@ -371,29 +362,19 @@ def _find_position_by_keywords(full_text: str, caption: str, alt_text: str, imag
     
     if alt_text and isinstance(alt_text, str):
         search_texts.append(alt_text)
-    
-    # Try each search text
+
     for search_text in search_texts:
         pos = _try_search(search_text)
         if pos != -1:
             return pos
-    
-    # STAGE 1: Fallback with proper boundary checking
-    paragraphs = full_text.split('\n\n')
-    
+
+    paragraphs = [p.strip() for p in full_text.split('\n\n') if p.strip()]
     if paragraphs and len(paragraphs) > 0:
-        # Safely access paragraph
         para_index = min(image_index - 1, len(paragraphs) - 1)
-        target_para = paragraphs[para_index] if para_index >= 0 else paragraphs[0]
+        target_para = paragraphs[para_index] 
         pos = full_text.find(target_para)
         if pos != -1:
             return pos
-    
-    # Last resort: proportional estimation with proper validation
-    text_length = len(full_text)
-    if text_length > 0:
-        return int((image_index / (image_index + POSITION_ESTIMATE_BUFFER)) * text_length)
-    
     return -1
 
 
@@ -407,11 +388,7 @@ def find_context_for_image(
 ) -> Tuple[str, str]:
     """
     Find surrounding context for image in document text with smart boundary detection.
-    
-    STAGE 1: Validation - check parameters, edge cases
-    STAGE 2: Constants - magic numbers replaced with constants
-    STAGE 3: KISS - simplified logic, better error handling
-    
+
     Improvements:
     1. Skips context for decorative images (detected via caption/VLM patterns)
     2. Uses sentence boundaries instead of fixed character count
@@ -470,7 +447,7 @@ def find_context_for_image(
 
 def _determine_image_extension(url: str) -> str:
     """
-    STAGE 3: DRY - extract extension detection into helper function
+    Extract extension detection into helper function
     
     Args:
         url: Image URL
@@ -507,9 +484,6 @@ def extract_images_from_json(
 ) -> List[Dict]:
     """
     Download images from URLs in JSON and create metadata with surrounding context.
-    
-    STAGE 1: Validation - check input parameters
-    STAGE 3: SRP - split into helper functions
     
     Args:
         json_data: Parsed JSON data
@@ -554,8 +528,7 @@ def extract_images_from_json(
         
         if not img_url:
             continue
-        
-# STAGE 3: DRY - use helper function for extension
+
         ext = _determine_image_extension(img_url)
         
         # Generate image ID and filename
@@ -612,8 +585,7 @@ def extract_images_from_json(
 
 def _save_images_metadata(images_metadata: List[Dict], doc_id: str, metadata_file: Path) -> None:
     """
-    STAGE 3: SRP - extract metadata saving into helper function
-    STAGE 2: Exception Handling - pattern from run_pipeline.py
+    Extract metadata saving into helper function
     
     Args:
         images_metadata: List of image metadata to save
@@ -656,10 +628,6 @@ def extract_json_document(doc_id: str, output_dir: Path = DEFAULT_OUTPUT_DIR) ->
     """
     Extract document from JSON file (RealPython or Medium).
     
-    STAGE 1: Validation - validate input parameters
-    STAGE 2: Exception Handling - proper JSON file handling
-    STAGE 3: SRP - split into helper functions
-    
     Args:
         doc_id: Document ID (e.g., "realpython_numpy-tutorial" or "medium_agents-plan-tasks")
         output_dir: Output directory for images (default: data/processed/images)
@@ -677,7 +645,6 @@ def extract_json_document(doc_id: str, output_dir: Path = DEFAULT_OUTPUT_DIR) ->
         ValueError: If doc_id is invalid
         FileNotFoundError: If JSON file not found
     """
-    # STAGE 1: Validation
     if not doc_id or not isinstance(doc_id, str):
         raise ValueError(f"doc_id must be non-empty string")
     
@@ -710,7 +677,6 @@ def extract_json_document(doc_id: str, output_dir: Path = DEFAULT_OUTPUT_DIR) ->
     
     logging.info(f"Extracted {len(images_metadata)} images, {len(full_text)} chars from {doc_id}")
 
-    # Save metadata
     metadata_file = output_dir.parent / "images_metadata.json"
     _save_images_metadata(images_metadata, doc_id, metadata_file)
     

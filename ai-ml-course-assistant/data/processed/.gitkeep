@@ -1,0 +1,2 @@
+# This file keeps the data/processed directory in version control
+# Processed documents and metadata are stored here but gitignored

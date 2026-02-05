@@ -18,11 +18,8 @@ from openai import OpenAI
 import openai
 from PIL import Image
 import io
+from config import VISION
 
-
-# ============================================================================
-# CONFIGURATION CONSTANTS - STAGE 2: Constants instead of magic numbers
-# ============================================================================
 
 # Image processing constants
 MAX_IMAGE_SIZE = 1024               # pixels - maximum width/height for image encoding
@@ -41,14 +38,10 @@ IMAGE_FORMAT = 'JPEG'              # Image format for encoding
 IMAGE_DATA_URL_FORMAT = 'data:image/jpeg;base64,{}'  # Data URL format for base64
 
 
-# ============================================================================
-# HELPER FUNCTIONS - STAGE 3: Extract DRY/SRP principles
-# ============================================================================
-
 def _validate_image_path(image_path: str) -> bool:
     """
-    STAGE 1: Validation - check if image file exists and is readable.
-    STAGE 3: DRY - extract path validation logic.
+    Check if image file exists and is readable.
+    Extract path validation logic.
     
     Args:
         image_path: Path to image file
@@ -74,10 +67,8 @@ def _validate_image_path(image_path: str) -> bool:
 
 
 def _resize_and_convert_image(img: Image.Image, max_size: int) -> Image.Image:
-    """
-    
+    """   
     Resize image and convert to RGB if needed.
-    
     Args:
         img: PIL Image object
         max_size: Maximum width/height in pixels
@@ -85,7 +76,7 @@ def _resize_and_convert_image(img: Image.Image, max_size: int) -> Image.Image:
     Returns:
         Resized and converted PIL Image
     """
-    # STAGE 1: Validate max_size
+    # Validate max_size
     if not isinstance(max_size, int) or max_size <= 0:
         logging.warning(f"Invalid max_size {max_size}, using default {MAX_IMAGE_SIZE}")
         max_size = MAX_IMAGE_SIZE
@@ -143,7 +134,7 @@ def _assemble_enriched_caption(
     Returns:
         Combined enriched caption text
     """
-    # STAGE 1: Validate inputs
+    # Validate inputs
     if not isinstance(author_caption, str):
         author_caption = ""
     if not isinstance(vlm_description, str):
@@ -185,7 +176,7 @@ class ImageCaptioner:
     
     def __init__(
         self, 
-        model_name: str = "gpt-4.1-mini",
+        model_name: str = VISION.MODEL,
         api_key: Optional[str] = None
     ):
         """
@@ -287,13 +278,13 @@ class ImageCaptioner:
             return None
         
         try:
-            # STAGE 3: Use helper for path validation
+            #  Use helper for path validation
             img = Image.open(image_path)
             
-            # STAGE 3: Use helper for resize and convert
+            #  Use helper for resize and convert
             img = _resize_and_convert_image(img, max_size)
             
-            # STAGE 3: Use helper for base64 encoding
+            #  Use helper for base64 encoding
             base64_image = _encode_image_to_base64(img)
             
             return base64_image
@@ -314,9 +305,6 @@ class ImageCaptioner:
         """
         Generate detailed description of an image using OpenAI Vision API.
         
-        STAGE 1: Validation - validate all parameters
-        STAGE 2: Use constants instead of magic numbers
-        
         Args:
             image_path: Path to image file
             max_length: Maximum tokens in description
@@ -325,7 +313,7 @@ class ImageCaptioner:
         Returns:
             Detailed text description of the image, or None if generation fails
         """
-        # STAGE 1: Validate inputs
+        # Validate inputs
         if not isinstance(image_path, str):
             logging.error(f"image_path must be str, got {type(image_path).__name__}")
             return None
@@ -334,7 +322,7 @@ class ImageCaptioner:
             logging.warning(f"Invalid max_length {max_length}, using default {MAX_CAPTION_TOKENS}")
             max_length = MAX_CAPTION_TOKENS
         
-        # STAGE 2: Use constant for max_size
+        # Use constant for max_size
         image_base64 = self.encode_image(image_path, max_size=MAX_IMAGE_SIZE)
         
         if image_base64 is None:
@@ -387,105 +375,6 @@ class ImageCaptioner:
             return None
 
 
-def create_enriched_caption(
-    image_id: str,
-    image_path: str,
-    context_dict: Dict[str, Optional[str]],
-    captioner: ImageCaptioner
-) -> Optional[Dict[str, str]]:
-    """
-    Create enriched caption combining multiple sources.
-    
-    STAGE 1: Validation - validate all parameters
-    STAGE 3: DRY - use helper function for caption assembly
-    
-    Args:
-        image_id: Unique identifier for the image
-        image_path: Path to image file
-        context_dict: {
-            "before": "Text before image",
-            "after": "Text after image",  
-            "figure_caption": "Figure X: ..." or None
-        }
-        captioner: ImageCaptioner instance
-        
-    Returns:
-        {
-            "image_id": "arxiv_1706_03762_vector_003_01",
-            "enriched_caption": "Combined caption for embedding",
-            "vlm_description": "OpenAI generated description",
-            "author_caption": "Figure caption from paper",
-            "context_text": "Surrounding text"
-        }
-        Returns None if caption generation fails
-    """
-    # STAGE 1: Validate inputs
-    if not isinstance(image_id, str) or not image_id.strip():
-        logging.error("image_id must be non-empty string")
-        return None
-    
-    if not isinstance(image_path, str):
-        logging.error(f"image_path must be str, got {type(image_path).__name__}")
-        return None
-    
-    if not isinstance(context_dict, dict):
-        logging.error(f"context_dict must be dict, got {type(context_dict).__name__}")
-        return None
-    
-    if not isinstance(captioner, ImageCaptioner):
-        logging.error("captioner must be ImageCaptioner instance")
-        return None
-    
-    try:
-        logging.info(f"Generating caption for {Path(image_path).name}...")
-        vlm_description = captioner.generate_caption(image_path)
-        
-        if vlm_description is None:
-            logging.warning(f"Failed to generate caption for {image_path}")
-            vlm_description = ""
-
-        # Extract context fields with type validation
-        author_caption = context_dict.get("figure_caption", "")
-        if not isinstance(author_caption, str):
-            author_caption = ""
-        
-        before_text = context_dict.get("before", "")
-        if not isinstance(before_text, str):
-            before_text = ""
-        
-        after_text = context_dict.get("after", "")
-        if not isinstance(after_text, str):
-            after_text = ""
-
-        # Assemble context text
-        context_text = ""
-        if before_text.strip():
-            context_text += before_text.strip()
-        if after_text.strip():
-            if context_text:
-                context_text += " ... "
-            context_text += after_text.strip()
-
-        # STAGE 3: Use helper function to assemble caption
-        enriched_caption = _assemble_enriched_caption(
-            author_caption,
-            vlm_description,
-            context_text
-        )
-        
-        return {
-            "image_id": image_id,
-            "enriched_caption": enriched_caption,
-            "vlm_description": vlm_description,
-            "author_caption": author_caption,
-            "context_text": context_text
-        }
-    
-    except Exception as e:
-        logging.error(f"Error creating enriched caption for {image_id}: {type(e).__name__}: {e}")
-        return None
-
-
 if __name__ == "__main__":
     # Test caption generation
     import sys
@@ -504,20 +393,3 @@ if __name__ == "__main__":
     
     print(f"\nGenerated Caption:")
     print(caption)
-    
-    # Create enriched caption with mock context
-    mock_context = {
-        "figure_caption": "Figure 1: The Transformer model architecture",
-        "before": "The model uses self-attention mechanisms to process sequences.",
-        "after": "As shown in the figure, the encoder stack consists of 6 layers."
-    }
-    
-    enriched = create_enriched_caption(
-        "test_image_001",
-        image_path,
-        mock_context,
-        captioner
-    )
-    
-    print(f"\nEnriched Caption:")
-    print(enriched['enriched_caption'])

@@ -12,6 +12,7 @@ API:
 """
 
 import os
+import sys
 import json
 import time
 import logging
@@ -22,19 +23,15 @@ from typing import List, Dict, Optional
 from urllib.parse import urlparse
 import argparse
 
+
 try:
     from bs4 import BeautifulSoup
 except ImportError as e:
     logging.error("BeautifulSoup not installed. Run: pip install beautifulsoup4")
     raise ImportError("BeautifulSoup4 is required. Install it with: pip install beautifulsoup4") from e
 
-
-
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%H:%M:%S'
-)
+from utils.logging_config import setup_logging
+setup_logging()
 
 DEFAULT_OUTPUT_DIR = Path(__file__).parent.parent / "data" / "raw" / "realpython"
 DEFAULT_NUM_ARTICLES = 10
@@ -46,12 +43,34 @@ TITLE_TRUNCATE_LENGTH = 60  # Max length for title display in logs
 
 CURATED_ARTICLES = [
     {
-    "url": "https://realpython.com/logistic-regression-python/",
-    "slug": "logistic-regression-python",
-    "title": "Logistic Regression in Python Using Scikit-Learn",
-    "topic": "Machine Learning Fundamentals",
-    "description": "A fundamental classification algorithm that serves as the basis for understanding how individual neurons in a network function."
-  },
+        "url": "https://realpython.com/huggingface-transformers/",
+        "slug": "huggingface-transformers-python",
+        "title": "Using Transformers and Hugging Face to Solve NLP Tasks",
+        "topic": "Natural Language Processing",
+        "description": "A practical guide to leveraging the Hugging Face ecosystem for NLP, covering pre-trained models, pipelines, and fine-tuning for tasks like text classification and generation."
+     },
+    {
+        "url": "https://realpython.com/chromadb-vector-database/",
+        "slug": "chromadb-vector-database",
+        "title": "Embeddings and Vector Databases With ChromaDB",
+        "topic": "Advanced AI Databases",
+        "description": "ChromaDB, vector search, embeddings, LLM context, practical ML example"
+    },
+    {
+        "url": "https://realpython.com/linear-regression-in-python/",
+        "slug": "linear-regression-in-python",
+        "title": "Linear Regression in Python",
+        "topic": "Machine Learning Fundamentals",
+        "description": "Simple and multiple linear regression, model evaluation, scikit-learn implementation"
+    },
+   
+    {
+        "url": "https://realpython.com/logistic-regression-python/",
+        "slug": "logistic-regression-python",
+        "title": "Logistic Regression in Python Using Scikit-Learn",
+        "topic": "Machine Learning Fundamentals",
+        "description": "A fundamental classification algorithm that serves as the basis for understanding how individual neurons in a network function."
+    },
     {
         "url": "https://realpython.com/python-ai-neural-network/",
         "slug": "python-ai-neural-network",

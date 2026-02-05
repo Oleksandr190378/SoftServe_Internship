@@ -51,17 +51,20 @@ from index.build_index import index_documents_to_chromadb
 # Load environment variables
 load_dotenv()
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%H:%M:%S'
-)
+# Configure logging
+from utils.logging_config import setup_logging
+setup_logging()
 
-PROJECT_ROOT = Path(__file__).parent
+# Import centralized configuration
+from config import CHUNKING, BASE_DIR
 
-# Processing configuration constants
-CHUNK_SIZE = 1700  # Approximately 500 tokens
-CHUNK_OVERLAP = 150  # Approximately 60 tokens
+PROJECT_ROOT = BASE_DIR
+
+# Processing configuration constants (from config)
+CHUNK_SIZE = CHUNKING.CHUNK_SIZE
+CHUNK_OVERLAP = CHUNKING.CHUNK_OVERLAP
+
+# Vision API cost tracking
 API_COST_PER_IMAGE = 0.015  # OpenAI GPT-4o-mini Vision cost
 IMAGES_METADATA_FILE = "images_metadata.json"
 
@@ -450,7 +453,7 @@ class EmbedStage(ProcessingStage):
             client=client
         )
         
-        # Store in context for Stage 5
+        # Store in context 
         context["chunks_with_embeddings"] = embed_result["chunks_with_embeddings"]
         context["images_with_embeddings"] = embed_result["images_with_embeddings"]
         
@@ -511,7 +514,7 @@ def process_document(
     Process a single document through all stages using Stage classes.
     
     Args:
-        doc_id: Document identifier (PDF filename without extension)
+        doc_id: Document identifier ( filename without extension)
         force: If True, reprocess even if already completed
         use_vlm: If True, use Vision-LM for image captions (costs API calls)
     
@@ -705,10 +708,6 @@ def show_status():
             error = doc.get("error", "Unknown error")
             logging.info(f"  - {doc['doc_id']}: {error}")
 
-
-# ============================================================================
-# CLI
-# ============================================================================
 
 def main():
     # Validate environment before any processing

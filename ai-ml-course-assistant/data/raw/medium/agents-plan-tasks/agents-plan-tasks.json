@@ -1,0 +1,183 @@
+{
+  "doc_id": "medium_agents-plan-tasks",
+  "url": "https://towardsdatascience.com/how-agents-plan-tasks-with-to-do-lists/",
+  "slug": "agents-plan-tasks",
+  "title": "How Agents Plan Tasks with To-Do Lists",
+  "source_type": "medium",
+  "downloaded_at": "2026-01-02T10:57:27.303914",
+  "content": {
+    "text": "Planning is somethingwe all do naturally and regularly. In our personal lives, we often keep to-do lists to organise holidays, errands, and everything in between.\n\nAt work, we rely on task trackers and project plans to keep teams aligned. For developers, it is also common to leaveTODOcomments in the code as reminders for future changes.\n\nUnsurprisingly, LLM agents also benefit from clear to-do lists to guide their planning.\n\nTo-do lists help agents plan and track complex tasks more effectively, making them especially useful for multi-tool coordination and long-running operations where progress needs to be visible.\n\nCoding agents likeOpenAI Codex,Cline, andClaude Code(which I use regularly) are prime examples of this concept.\n\nThey break complex requests into an initial set of steps, organize them as a to-do list with dependencies, and update the plan in real time as tasks are completed or new information arises.\n\nThis clarity enables agents to handle long sequences of actions, coordinate across different tools, and track progress in an understandable manner.\n\nIn this article, we dive into how agents utilize to-do list capabilities, analyze the underlying components of the planning process, and demonstrate its implementation with LangChain.\n\n(1)Example Scenario for Planning Agent(2)Key Components of To-Do Capabilities(3)Putting it together in a Middleware\n\nThe accompanying code is available inthis GitHub repo.\n\nLet’s look at the example scenario to anchor our walkthrough.\n\nWe will set up asingle agentto plan a travel itinerary and execute the booking tasks. The agent has access tothree tools:\n\nIn this example, these tools are mocked and do not perform real bookings; they are included to illustrate the agent’s planning logic and how it uses to-do lists.\n\nHere is the code to implement ourplanning agentin LangChain:\n\nWe input a user query and view the to-do list resulting from the agent’s planning:\n\nThe use of structured note-taking via to-do lists enables agents to maintain persistent memory outside the context window. This strategy improves an agent’s ability to manage and retain relevant context over time.\n\nThe code setup is straightforward:create_agentcreates the LLM agent instance, we pass in the system prompt, select the model (GPT-5.1), and link the tools.\n\nWhat is noteworthy is theTodoListMiddleware()object that is passed into themiddlewareparameter.\n\nFirstly, what is LangChain’smiddleware?\n\nAs the name suggests, it is a middle layer that lets you run custom code before and after LLM calls.\n\nThink of middleware as a programmable layer that allows us to inject code to monitor, adjust, or extend its behavior.\n\nIt gives us control and visibility over agents’ behaviors without changing their core logic. It can be used to transform prompts and outputs, manage retries or early exits, and apply safeguards (e.g., guardrails, PII checks).\n\nTodoListMiddlewareis a built-in middleware that specifically provides to-do list management capabilities to agents. Next, we explore how theTodoListMiddlewareworks under the hood.\n\nA planning agent’s to-do list management capabilities boil down to thesefour key components:\n\nTheTodoListMiddlewarebrings these elements together to enable an agent’s to-do list capabilities.\n\nLet’s take a closer look at each component and how it is implemented in theto-do middleware code.\n\nA to-do item is the smallest unit in a to-do list, representing a single task. It is represented by two fields: task description and current status.\n\nIn LangChain, this is modeled as aTodotype, defined usingTypedDict:\n\nThecontentfield represents the description of the task that the agent needs to do next, while thestatustracks whether the task has not been started (pending), being worked on (in_progress), or finished (completed).\n\nHere is an example of a to-do item:\n\nNow that we’ve defined the structure of aTodoitem, we explore how a set of to-do items is stored and tracked as part of the overall plan.\n\nWe define aStateobject (PlanningState) to capture the plan as alistof to-do items, which will be updated as tasks are performed:\n\nThetodosfield is optional (NotRequired), meaning it may be absent when first initialized (i.e., the agent may not yet have any tasks in its plan).\n\nOmitFromInputmeans thattodosis managed internally by the middleware and should not be provided directly as user input.\n\nState is the agent’s short-term memory, capturing recent conversations and key information so it can act appropriately based on prior context and information.In this case, the to-do list remains within the state for the agent to reference and update tasks consistently throughout the session.\n\nHere is an example of a to-do list:\n\nWith the basic structure of the to-do list established, we now need a tool for the LLM agent to manage and update it as tasks get executed.\n\nHere is the standard way to define our tool (write_todos):\n\nThewrite_todostool returns aCommandthat instructs the agent to update its to-do list and append a message recording the change.\n\nWhile thewrite_todosstructure is straightforward, the magic lies in the description (WRITE_TODOS_TOOL_DESCRIPTION) of the tool.\n\nWhen the agent calls the tool, the tool description serves as the critical additional prompt,guiding it on how to use it correctly and what inputs to provide.\n\nHere is LangChain’s (pretty lengthy) expression of the tool description:\n\nWe can see that the description is highly structured and precise, defining when and how to use the tool, task states, and management rules.\n\nIt also provides clear guidelines for tracking complex tasks, breaking them into clear steps, and updating them systematically.\n\nFeel free to check out Deepagents’ more succinct interpretation of a to-do tool descriptionhere\n\nThe final element of setting up the to-do capability is updating the agent’s system prompt.\n\nIt is done by injectingWRITE_TODOS_SYSTEM_PROMPTinto the main prompt, explicitly informing the agent that thewrite_todostool exists.\n\nIt guides the agent onwhen and why to use the tool, provides context for complex, multi-step tasks, and outlines best practices for maintaining and updating the to-do list:\n\nFinally, all four key components come together in a single class calledTodoListMiddleware, which packages the to-do capabilities into a cohesive flow for the agent:\n\nTheWRITE_TODOS_SYSTEM_PROMPTis injected through the middleware’swrap_model_call(andawrap_model_call) method, which appends it to the agent’s system message for every model call, as shown below:\n\nJust like humans, agents use to-do lists to break down complex problems, stay organized, and adapt in real time, enabling them to solve problems more effectively and accurately.\n\nThrough LangChain’s middleware implementation, we also gain deeper insight into how planned tasks can be structured, tracked, and executed by agents.\n\nCheck outthis GitHub repofor the code implementation.",
+    "structure": [
+      {
+        "level": "h2",
+        "text": "Contents"
+      },
+      {
+        "level": "h2",
+        "text": "(1) Example Scenario for Planning Agent"
+      },
+      {
+        "level": "h2",
+        "text": "(2) Key Components of To-Do Capabilities"
+      },
+      {
+        "level": "h3",
+        "text": "(2.1) To-do task item"
+      },
+      {
+        "level": "h3",
+        "text": "(2.2) List of to-do items"
+      },
+      {
+        "level": "h3",
+        "text": "(2.3) Tool to write and update to-dos"
+      },
+      {
+        "level": "h3",
+        "text": "(2.4) System prompt update"
+      },
+      {
+        "level": "h2",
+        "text": "(3) Putting it together in a Middleware"
+      },
+      {
+        "level": "h2",
+        "text": "Wrapping it up"
+      }
+    ],
+    "code_blocks": [
+      {
+        "index": 1,
+        "code": "buy_travel_insurance"
+      },
+      {
+        "index": 2,
+        "code": "book_flight"
+      },
+      {
+        "index": 4,
+        "code": "create_agent"
+      },
+      {
+        "index": 6,
+        "code": "TodoListMiddleware()"
+      },
+      {
+        "index": 8,
+        "code": "TodoListMiddleware"
+      },
+      {
+        "index": 9,
+        "code": "TodoListMiddleware"
+      },
+      {
+        "index": 10,
+        "code": "TodoListMiddleware"
+      },
+      {
+        "index": 16,
+        "code": "in_progress"
+      },
+      {
+        "index": 18,
+        "code": "{\n   \"content\": \"Compare flight options from Singapore to Tokyo\",\n   \"status\": \"completed\"\n},"
+      },
+      {
+        "index": 19,
+        "code": "{\n   \"content\": \"Compare flight options from Singapore to Tokyo\",\n   \"status\": \"completed\"\n},"
+      },
+      {
+        "index": 22,
+        "code": "PlanningState"
+      },
+      {
+        "index": 24,
+        "code": "NotRequired"
+      },
+      {
+        "index": 25,
+        "code": "OmitFromInput"
+      },
+      {
+        "index": 27,
+        "code": "todos: list[Todo] = [\n    {\n        \"content\": \"Research visa requirements for Singapore passport holders visiting Japan\",\n        \"status\": \"completed\"\n    },\n    {\n        \"content\": \"Compare flight options from Singapore to Tokyo\",\n        \"status\": \"in_progress\"\n    },\n    {\n        \"content\": \"Book flights and hotels once itinerary is finalized\",\n        \"status\": \"pending\"\n    }\n]"
+      },
+      {
+        "index": 28,
+        "code": "todos: list[Todo] = [\n    {\n        \"content\": \"Research visa requirements for Singapore passport holders visiting Japan\",\n        \"status\": \"completed\"\n    },\n    {\n        \"content\": \"Compare flight options from Singapore to Tokyo\",\n        \"status\": \"in_progress\"\n    },\n    {\n        \"content\": \"Book flights and hotels once itinerary is finalized\",\n        \"status\": \"pending\"\n    }\n]"
+      },
+      {
+        "index": 29,
+        "code": "write_todos"
+      },
+      {
+        "index": 30,
+        "code": "write_todos"
+      },
+      {
+        "index": 32,
+        "code": "write_todos"
+      },
+      {
+        "index": 33,
+        "code": "WRITE_TODOS_TOOL_DESCRIPTION"
+      },
+      {
+        "index": 34,
+        "code": "WRITE_TODOS_SYSTEM_PROMPT"
+      },
+      {
+        "index": 35,
+        "code": "write_todos"
+      },
+      {
+        "index": 36,
+        "code": "TodoListMiddleware"
+      },
+      {
+        "index": 37,
+        "code": "PlanningState"
+      },
+      {
+        "index": 38,
+        "code": "write_todos"
+      },
+      {
+        "index": 39,
+        "code": "WRITE_TODOS_SYSTEM_PROMPT"
+      },
+      {
+        "index": 40,
+        "code": "WRITE_TODOS_SYSTEM_PROMPT"
+      },
+      {
+        "index": 41,
+        "code": "wrap_model_call"
+      },
+      {
+        "index": 42,
+        "code": "awrap_model_call"
+      }
+    ],
+    "images": [
+      {
+        "index": 1,
+        "url": "https://cdn-images-1.medium.com/max/1440/1*Tpec0pk8QLwVdHuPrzrFZQ.png",
+        "alt_text": "",
+        "caption": "Example of a plan generated by Claude Code agent (Claude-4.5-sonnet) on the right-hand pane of Cursor | Image by author"
+      },
+      {
+        "index": 2,
+        "url": "https://cdn-images-1.medium.com/max/1440/1*dXUI_-i7rV-NvTenRYNKjQ.png",
+        "alt_text": "",
+        "caption": "To-do list generated by the travel planning agent"
+      }
+    ]
+  },
+  "stats": {
+    "text_length": 6905,
+    "code_blocks": 28,
+    "images": 2,
+    "headings": 9
+  }
+}

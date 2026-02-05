@@ -29,22 +29,22 @@ else:
     import fcntl
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%H:%M:%S'
-)
+from utils.logging_config import setup_logging
+setup_logging()  # Centralized logging configuration
 
-# Constants
-EMBEDDING_MODEL = "text-embedding-3-small"
-EMBEDDING_DIMS = 1536
+# Import centralized configuration
+from config import EMBEDDING, CHROMA_DIR, CHUNKS_BACKUP_DIR, BASE_DIR
+
+# Constants (from config)
+EMBEDDING_MODEL = EMBEDDING.MODEL
+EMBEDDING_DIMS = EMBEDDING.DIMENSIONS
 MAX_ENRICHED_CAPTION_LENGTH = 1000
 MAX_AUTHOR_CAPTION_LENGTH = 500
 
 # Default paths (configurable via IndexConfig)
-DEFAULT_BASE_DIR = Path(__file__).parent.parent
-DEFAULT_CHROMA_DIR = DEFAULT_BASE_DIR / "data" / "chroma_db"
-DEFAULT_CHUNKS_BACKUP_DIR = DEFAULT_BASE_DIR / "data" / "chunks_backup"
+DEFAULT_BASE_DIR = BASE_DIR
+DEFAULT_CHROMA_DIR = CHROMA_DIR
+DEFAULT_CHUNKS_BACKUP_DIR = CHUNKS_BACKUP_DIR
 
 # Legacy globals for backwards compatibility
 BASE_DIR = DEFAULT_BASE_DIR
@@ -198,7 +198,7 @@ def _get_existing_ids(collection) -> Set[str]:
     """
     Get set of existing document IDs from ChromaDB collection.
     
-    Single responsibility: Query existing IDs for duplicate detection.
+    Query existing IDs for duplicate detection.
     
     Args:
         collection: ChromaDB collection object
@@ -221,7 +221,7 @@ def _prepare_text_chunks_for_indexing(
     """
     Prepare text chunks for ChromaDB indexing (skip duplicates).
     
-    Single responsibility: Filter and format text chunks for indexing.
+    Filter and format text chunks for indexing.
     
     Args:
         chunks_with_embeddings: List of chunks with embeddings
@@ -299,7 +299,7 @@ def _prepare_images_for_indexing(
     """
     Prepare image captions for ChromaDB indexing (skip duplicates).
     
-    Single responsibility: Filter and format image captions for indexing.
+    Filter and format image captions for indexing.
     
     Args:
         images_with_embeddings: List of images with embeddings
@@ -377,7 +377,7 @@ def _get_or_create_collection(
     description: str
 ):
     """
-    Get existing or create new ChromaDB collection (DRY helper).
+    Get existing or create new ChromaDB collection .
     
     Args:
         client: ChromaDB client
@@ -417,7 +417,7 @@ def index_documents_to_chromadb(
     - File-based locking prevents concurrent write race conditions
     - Incremental indexing (skips duplicates)
     - Native ChromaDB API (no langchain wrapper)
-    - Single Responsibility: orchestrate indexing with locking
+    - Orchestrate indexing with locking
     
     Args:
         doc_id: Document identifier (for logging)
@@ -437,7 +437,7 @@ def index_documents_to_chromadb(
     """
     logging.info(f"📊 Indexing {doc_id} to ChromaDB")
     
-    # STAGE 1: Critical validation
+    # Parameter validation
     if not doc_id or not isinstance(doc_id, str):
         raise ValueError("doc_id must be a non-empty string")
     
@@ -465,7 +465,7 @@ def index_documents_to_chromadb(
         if missing:
             raise ValueError(f"Image {idx} missing required keys: {missing}")
     
-    # Save backup (STAGE 2: Error handling added)
+    # Save backup (Error handling added)
     _save_chunks_backup(doc_id, chunks_with_embeddings, images_with_embeddings)
     
     # Ensure ChromaDB directory exists
@@ -519,9 +519,6 @@ def index_documents_to_chromadb(
         if text_skipped > 0:
             logging.info(f"⏭️  Skipped {text_skipped} existing text chunks")
         
-        # ====================================================================
-        # Index image captions
-        # ====================================================================
         logging.info(f"Indexing {len(images_with_embeddings)} image captions...")
         
         # Get or create image_captions collection (DRY: using helper)

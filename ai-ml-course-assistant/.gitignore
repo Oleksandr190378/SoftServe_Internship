@@ -26,25 +26,52 @@ ENV/
 *.ipynb
 
 # Data files (ignore entire data folder - large files)
-data/
+# Strategy: ignore everything, then whitelist specific example folders
 
-# Keep directory structure with .gitkeep files
-!data/.gitkeep
-!data/raw_data/.gitkeep
-!data/processed/.gitkeep
-!data/processed/images/.gitkeep
-!data/chroma_db/.gitkeep
+# 1. Ignore everything in data/
+data/**/*
+
+# 2. Allow directory structure to be tracked
+!data/
+!data/raw/
+!data/raw/medium/
+!data/raw/realpython/
+!data/raw/papers/
+
+# 3. Whitelist specific example folders WITH ALL CONTENT
+# Medium example: agents planning tasks
+!data/raw/medium/agents-plan-tasks/
+!data/raw/medium/agents-plan-tasks/**
+
+# RealPython example: neural network tutorial
+!data/raw/realpython/python-ai-neural-network/
+!data/raw/realpython/python-ai-neural-network/**
+
+# 4. Keep .gitkeep files for empty directories structure
+!**/.gitkeep
+
+# Docker test data 
+docker_test_data/
+
+# Docker test logs
+docker_test_logs/
 
 # Model files (if downloading any)
 *.bin
 *.safetensors
 *.gguf
+
+# Build and setup scripts
+setup.bat
+setup.sh
+
+# GitHub workflows (manage separately)
+.github/workflows/test.yml
+.github/workflows/deploy.yml
 models/
 
 # Evaluation results
 eval/results/
-*.csv
-*.xlsx
 
 # OS files
 .DS_Store
@@ -66,10 +93,14 @@ dist/
 # Temporary files
 *.tmp
 temp/
-# Docker files (local development only)
-Dockerfile
-docker-compose.yml
-DOCKER.md
+
+# Docker - Keep configuration files, ignore local overrides
+# docker-compose.override.yml  # Uncomment if using local overrides
+
+# Progress tracking (local only)
+
+GITIGNORE_EXAMPLES.md
 
 # Backup and utility scripts (local only)
 restore_from_backup.py
+demo_script.txt

@@ -27,12 +27,9 @@ except ImportError as e:
     raise ImportError("arxiv library is required. Install it with: pip install arxiv") from e
 
 from ingest.utils import save_papers_metadata
+from utils.logging_config import setup_logging
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%H:%M:%S'
-)
+setup_logging()
 
 # Configuration constants
 DEFAULT_CATEGORIES = ["cs.LG", "cs.AI", "cs.CV"]
@@ -95,21 +92,16 @@ CURATED_PAPERS = [
 ]
 
 CURATED_PAPERS_FULL = [
-    # Золотий фонд (вже завантажені)
     "1706.03762", "1512.03385", "1409.1556",
-    
-    # Фундаментальні архітектури
+
     "1502.03167", "1207.0580", "1406.2661", "1312.6114", "1409.0473", "1411.1784",
     "1810.04805", "2005.14165", "1906.08237", "1704.05526", "2001.08361",
-    
-    # Computer Vision
+
     "1506.02640", "1504.08083", "1703.06870", "1905.11946", "2010.11929",
     "1611.05431", "2004.10934", "2103.14030", "1911.09070", "1802.02611",
-    
-    # Мультимодальність та Генеративні моделі
+
     "2103.00020", "2006.11239", "2112.10752", "1909.11059",
-    
-    # Оптимізація, RL та Ефективність
+
     "1607.06450", "1711.05101", "1707.06347", "2203.02155", "1312.5602",
     "2106.09685", "2305.14314", "2005.11401", "1808.05377", "1706.02515", "1609.02907"
 ]
@@ -131,8 +123,9 @@ def _create_paper_metadata(paper: arxiv.Result, paper_id: str) -> Dict:
     # Extract original arXiv ID from paper object if available
     try:
         original_arxiv_id = paper.get_short_id()
-    except:
-        original_arxiv_id = paper_id
+    except (AttributeError, ValueError, TypeError, Exception) as e:
+        logging.warning(f"Could not extract arxiv ID from paper object: {type(e).__name__} - {e}")
+        original_arxiv_id = paper_id if paper_id else "unknown"
     
     # Ensure doc_id uses safe format (underscores instead of dots)
     safe_id = paper_id.replace(".", "_").replace("/", "_")
